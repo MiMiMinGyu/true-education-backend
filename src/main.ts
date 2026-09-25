@@ -9,7 +9,7 @@ async function bootstrap() {
 
   // 프론트엔드가 별도 레포/오리진에서 쿠키 기반 세션을 사용하므로 credentials 허용이 필수입니다.
   app.enableCors({
-    origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173',
+    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
     credentials: true,
   });
 
@@ -52,6 +52,6 @@ async function bootstrap() {
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api-docs', app, swaggerDocument);
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 4000);
 }
 bootstrap();
