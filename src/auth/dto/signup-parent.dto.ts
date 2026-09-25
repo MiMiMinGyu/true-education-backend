@@ -1,28 +1,31 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsString } from 'class-validator';
+import { SignupBaseDto } from './signup-base.dto';
 
-export class SignupParentDto {
-  @ApiProperty({ example: 'parent01', minLength: 4, maxLength: 20 })
-  @IsString()
-  @MinLength(4)
-  @MaxLength(20)
-  @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: '아이디는 영문, 숫자, _ 만 사용할 수 있습니다.',
-  })
-  username: string;
-
-  @ApiProperty({ example: 'pass1234', minLength: 8, maxLength: 64 })
-  @IsString()
-  @MinLength(8)
-  @MaxLength(64)
-  password: string;
-
-  // 학생 가입 시 발급된 학생 코드. 서버가 DB에 저장된 코드와 대조해 부모-학생 관계를 매핑합니다.
+export class SignupParentDto extends SignupBaseDto {
   @ApiProperty({
     example: 'aB3$vK',
-    description: '학생 가입 시 발급된 학생 코드',
+    description: '학생 가입 시 발급된 6자리 코드(대소문자 구분)',
   })
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: '학생 연결 코드를 입력해 주세요.' })
   studentCode: string;
+
+  @ApiProperty({
+    example: true,
+    description: '이용약관·개인정보 처리방침 동의(필수)',
+  })
+  @IsBoolean()
+  termsAgreed: boolean;
+
+  @ApiProperty({ example: false, description: '마케팅 정보 수신 동의(선택)' })
+  @IsBoolean()
+  marketingAgreed: boolean;
+
+  @ApiProperty({
+    example: true,
+    description: '자녀 개인정보 수집·이용 동의(법정대리인, 필수)',
+  })
+  @IsBoolean()
+  guardianConsentAgreed: boolean;
 }

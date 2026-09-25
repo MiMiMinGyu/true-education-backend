@@ -1,13 +1,19 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { UserRole } from '../../../users/interfaces/user.interface';
 
 export class MeResponseDto {
-  @ApiProperty({ example: 'f6136499-9e00-44a7-956a-4539a95f905d' })
-  id: string;
+  @ApiProperty({ example: 1 })
+  id: number;
 
-  @ApiProperty({ example: 'parent01' })
-  username: string;
-
-  @ApiProperty({ example: 'parent', enum: ['student', 'parent'] })
+  @ApiProperty({ example: 'STUDENT', enum: ['STUDENT', 'PARENT'] })
   role: UserRole;
+
+  @ApiProperty({ example: '김여울' })
+  name: string;
+
+  @ApiPropertyOptional({
+    example: 'T5y6*F',
+    description: '학생만 포함. 마이페이지(설정)에서 보호자 연결 코드 재확인용',
+  })
+  studentCode?: string;
 }

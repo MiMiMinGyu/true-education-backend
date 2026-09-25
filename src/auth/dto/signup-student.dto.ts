@@ -1,19 +1,30 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+  STUDENT_AGE_MAX,
+  STUDENT_AGE_MIN,
+} from '../../common/constants/auth.constants';
+import { SignupBaseDto } from './signup-base.dto';
 
-export class SignupStudentDto {
-  @ApiProperty({ example: 'student01', minLength: 4, maxLength: 20 })
-  @IsString()
-  @MinLength(4)
-  @MaxLength(20)
-  @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: '아이디는 영문, 숫자, _ 만 사용할 수 있습니다.',
+export class SignupStudentDto extends SignupBaseDto {
+  @ApiPropertyOptional({
+    example: 8,
+    minimum: STUDENT_AGE_MIN,
+    maximum: STUDENT_AGE_MAX,
+    description:
+      '가입 시 입력한 나이. 서버가 출생 연도(현재 연도 − 나이, Asia/Seoul)로 저장',
   })
-  username: string;
+  @IsOptional()
+  @IsInt()
+  @Min(STUDENT_AGE_MIN)
+  @Max(STUDENT_AGE_MAX)
+  age?: number;
 
-  @ApiProperty({ example: 'pass1234', minLength: 8, maxLength: 64 })
-  @IsString()
-  @MinLength(8)
-  @MaxLength(64)
-  password: string;
+  @ApiProperty({
+    example: true,
+    description:
+      '학습 내용 보호자 전달 동의(필수, 사전 고지). true가 아니면 400',
+  })
+  @IsBoolean()
+  guardianShareAgreed: boolean;
 }
