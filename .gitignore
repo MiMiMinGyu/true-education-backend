@@ -56,3 +56,6 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 CLAUDE.local.md
+
+# 기획·설계 문서는 로컬에서만 관리
+docs/
