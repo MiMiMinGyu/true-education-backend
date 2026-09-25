@@ -1,8 +1,8 @@
 export const PASSWORD_SALT_ROUNDS = 10;
 
-// TODO: 프론트 가입 화면은 3~19살 필수 입력. 범위·필수 여부는 팀 확정 후 조정 (FRONTEND-INTEGRATION §3-3)
-export const STUDENT_AGE_MIN = 4;
-export const STUDENT_AGE_MAX = 15;
+// 프론트 가입 화면과 같은 범위. 서비스 특성상 나이로 제한할 이유가 없어 넓게 받습니다.
+export const STUDENT_AGE_MIN = 3;
+export const STUDENT_AGE_MAX = 19;
 
 export const LOGIN_ID_PATTERN = /^[a-zA-Z0-9_]{4,20}$/;
 export const PASSWORD_MIN_LENGTH = 8;
