@@ -1,8 +1,11 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import connectPgSimple from 'connect-pg-simple';
 import session from 'express-session';
 import { AppModule } from './app.module';
+
+const PgSessionStore = connectPgSimple(session);
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -24,8 +27,13 @@ async function bootstrap() {
         sameSite: 'lax',
         maxAge: 1000 * 60 * 60 * 24,
       },
-      // TODO: 현재는 기본 MemoryStore(인메모리) 사용 중. 다중 인스턴스 배포 시
-      // 세션 공유를 위해 영속 스토어(예: Redis) 도입 검토 필요.
+      // 이미 쓰는 PostgreSQL에 세션을 저장해 별도 저장소(Redis 등) 없이 재시작·다중 인스턴스에서도 세션을 유지합니다.
+      // 테이블(user_sessions)은 Prisma 마이그레이션이 관리하므로 자동 생성은 끕니다.
+      store: new PgSessionStore({
+        conString: process.env.DATABASE_URL,
+        tableName: 'user_sessions',
+        createTableIfMissing: false,
+      }),
     }),
   );
 
