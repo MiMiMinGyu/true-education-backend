@@ -4,6 +4,7 @@
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-floating-promises": "warn"
   },
+  "ignorePatterns": ["src/generated/**"],
   "env": {
     "node": true
   }

@@ -1,0 +1,23 @@
+# 로컬 개발용 PostgreSQL. 다른 프로젝트의 DB(5432)와 겹치지 않도록 호스트 포트는 기본 5433을 사용합니다.
+name: true-education
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: true-education-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-yeoul}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yeoul}
+      POSTGRES_DB: ${POSTGRES_DB:-true_education}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
