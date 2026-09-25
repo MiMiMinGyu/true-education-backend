@@ -1,0 +1,317 @@
+// 여울(true-education) DB 스키마 — 기준 문서입니다.
+// Prisma가 표현하지 못하는 제약(부분 유일 인덱스, CHECK)은 prisma/migrations/*/migration.sql에 직접 추가되어 있습니다.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------
+// 1. 계정
+// ---------------------------------------------------------------------
+
+model Student {
+  id                  Int      @id @default(autoincrement())
+  loginId             String   @unique @map("login_id") @db.VarChar(50)
+  passwordHash        String   @map("password_hash") @db.VarChar(255)
+  name                String   @db.VarChar(50)
+  /// 가입 시 받은 나이로 서버가 계산(현재 연도(Asia/Seoul) - 나이). CHECK 2000~2100
+  birthYear           Int?     @map("birth_year") @db.SmallInt
+  /// 보호자 연결용 6자리 코드(서버 발급, 대소문자 구분)
+  studentCode         String   @unique @map("student_code") @db.Char(6)
+  guardianShareAgreed Boolean  @default(false) @map("guardian_share_agreed")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  parents       ParentStudent[]
+  assignments   BookAssignment[]
+  stamps        StudentStamp[]
+  parentRewards ParentReward[]
+
+  @@map("students")
+}
+
+model Parent {
+  id              Int      @id @default(autoincrement())
+  loginId         String   @unique @map("login_id") @db.VarChar(50)
+  passwordHash    String   @map("password_hash") @db.VarChar(255)
+  name            String   @db.VarChar(50)
+  termsAgreed     Boolean  @default(false) @map("terms_agreed")
+  marketingAgreed Boolean  @default(false) @map("marketing_agreed")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  students ParentStudent[]
+  rewards  ParentReward[]
+
+  @@map("parents")
+}
+
+model ParentStudent {
+  parentId              Int      @map("parent_id")
+  studentId             Int      @map("student_id")
+  /// 자녀 개인정보 수집·이용 동의(법정대리인). 동의 시각 = createdAt
+  guardianConsentAgreed Boolean  @default(false) @map("guardian_consent_agreed")
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  parent  Parent  @relation(fields: [parentId], references: [id])
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@id([parentId, studentId])
+  @@index([studentId])
+  @@map("parent_students")
+}
+
+// ---------------------------------------------------------------------
+// 2. 콘텐츠 (적재 스크립트로 넣음, 모든 학생 공용)
+// ---------------------------------------------------------------------
+
+model Book {
+  id            Int      @id @default(autoincrement())
+  /// AI JSON의 source.story_id. 재적재 시 upsert 기준
+  externalId    String   @unique @map("external_id") @db.VarChar(100)
+  title         String   @db.VarChar(100)
+  author        String?  @db.VarChar(100)
+  sourceUrl     String?  @map("source_url")
+  license       String?  @db.VarChar(200)
+  bibliography  String?
+  /// { paragraphs: [{ id, lines: [{ id, text, syllableCount }] }], glossary: {...} }
+  content       Json
+  coverImageUrl String?  @map("cover_image_url")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  questions   Question[]
+  ttsAudios   TtsAudio[]
+  assignments BookAssignment[]
+
+  @@map("books")
+}
+
+enum QuestionFormat {
+  CHOICE
+  ORDERING
+}
+
+/// 누가=WHO, 무슨 일=WHAT, 왜=WHY, 마음=EMOTION, 순서 맞추기=ORDER
+enum QuestionStage {
+  WHO
+  WHAT
+  WHY
+  EMOTION
+  ORDER
+}
+
+model Question {
+  id             Int            @id @default(autoincrement())
+  bookId         Int            @map("book_id")
+  /// AI JSON의 문제 id(q1~q4), 순서 맞추기는 ORDER
+  externalKey    String         @map("external_key") @db.VarChar(20)
+  questionFormat QuestionFormat @map("question_format")
+  stage          QuestionStage
+  questionOrder  Int            @map("question_order") @db.SmallInt
+  questionText   String         @map("question_text")
+  /// CHOICE: ["보기1", ...] / ORDERING: [{ id: "e1", text }, ...] (정답 순서로 저장)
+  options        Json
+  /// CHOICE: 0부터 시작하는 보기 번호 / ORDERING: ["e1", ...]. 채점 전 응답 금지
+  correctAnswer  Json           @map("correct_answer")
+  hint           String?
+  evidence       Json?
+
+  book     Book              @relation(fields: [bookId], references: [id])
+  attempts QuestionAttempt[]
+
+  @@unique([bookId, externalKey])
+  @@unique([bookId, questionOrder])
+  @@map("questions")
+}
+
+model TtsAudio {
+  id          Int      @id @default(autoincrement())
+  bookId      Int      @map("book_id")
+  lineId      String   @map("line_id") @db.VarChar(30)
+  /// sha256(text + voice_id + model + 출력 옵션). 다르면 재생성
+  contentHash String   @map("content_hash") @db.VarChar(64)
+  /// 저장소 객체 키. URL은 응답 시 생성
+  audioUrl    String   @map("audio_url")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  book Book @relation(fields: [bookId], references: [id])
+
+  @@unique([bookId, lineId])
+  @@map("tts_audio")
+}
+
+// ---------------------------------------------------------------------
+// 3. 학습 (학생별)
+// ---------------------------------------------------------------------
+
+enum AssignmentStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum LearningStage {
+  READING
+  QUESTION
+  ORDERING
+  TITLE
+  DRAWING
+  REFLECTION
+  COMPLETED
+}
+
+/// 학생당 IN_PROGRESS는 1건만(부분 유일 인덱스 uq_one_in_progress_per_student),
+/// status = COMPLETED ⇔ completed_at IS NOT NULL (CHECK chk_assignment_completed) — 마이그레이션 SQL에 있음
+model BookAssignment {
+  id           Int              @id @default(autoincrement())
+  studentId    Int              @map("student_id")
+  bookId       Int              @map("book_id")
+  /// 배정일(Asia/Seoul). 기한 없음
+  startDate    DateTime         @map("start_date") @db.Date
+  studentTitle String?          @map("student_title") @db.VarChar(100)
+  status       AssignmentStatus @default(IN_PROGRESS)
+  completedAt  DateTime?        @map("completed_at") @db.Timestamptz(6)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  student  Student           @relation(fields: [studentId], references: [id])
+  book     Book              @relation(fields: [bookId], references: [id])
+  sessions LearningSession[]
+  attempts QuestionAttempt[]
+  progress ReadingProgress?
+  drawing  Drawing?
+  stamp    StudentStamp?
+
+  @@unique([studentId, startDate])
+  @@unique([studentId, bookId])
+  @@index([studentId, completedAt])
+  @@map("book_assignments")
+}
+
+model LearningSession {
+  id                Int      @id @default(autoincrement())
+  bookAssignmentId  Int      @map("book_assignment_id")
+  sessionDate       DateTime @map("session_date") @db.Date
+  startedAt         DateTime @default(now()) @map("started_at") @db.Timestamptz(6)
+  lastActiveAt      DateTime @default(now()) @map("last_active_at") @db.Timestamptz(6)
+  /// 페이지 저장마다 서버가 학생 차례 줄의 음절 수를 더함
+  readSyllableCount Int      @default(0) @map("read_syllable_count")
+  readingDurationMs Int      @default(0) @map("reading_duration_ms")
+
+  assignment BookAssignment    @relation(fields: [bookAssignmentId], references: [id])
+  attempts   QuestionAttempt[]
+
+  @@unique([bookAssignmentId, sessionDate])
+  @@map("learning_sessions")
+}
+
+/// attempt_number는 서버가 부여, CHECK 1~3(chk_attempt_number) — 마이그레이션 SQL에 있음
+model QuestionAttempt {
+  id                Int      @id @default(autoincrement())
+  bookAssignmentId  Int      @map("book_assignment_id")
+  learningSessionId Int      @map("learning_session_id")
+  questionId        Int      @map("question_id")
+  attemptNumber     Int      @map("attempt_number") @db.SmallInt
+  studentAnswer     Json     @map("student_answer")
+  isCorrect         Boolean  @map("is_correct")
+  responseTimeMs    Int?     @map("response_time_ms")
+  answeredAt        DateTime @default(now()) @map("answered_at") @db.Timestamptz(6)
+
+  assignment BookAssignment  @relation(fields: [bookAssignmentId], references: [id])
+  session    LearningSession @relation(fields: [learningSessionId], references: [id])
+  question   Question        @relation(fields: [questionId], references: [id])
+
+  @@unique([bookAssignmentId, questionId, attemptNumber])
+  @@map("question_attempts")
+}
+
+model ReadingProgress {
+  bookAssignmentId Int           @id @map("book_assignment_id")
+  currentStage     LearningStage @default(READING) @map("current_stage")
+  /// READING: 저장 완료한 페이지 수 / QUESTION: 끝낸 문제 수
+  currentStep      Int           @default(0) @map("current_step") @db.SmallInt
+  updatedAt        DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assignment BookAssignment @relation(fields: [bookAssignmentId], references: [id])
+
+  @@map("reading_progress")
+}
+
+model Drawing {
+  id               Int      @id @default(autoincrement())
+  bookAssignmentId Int      @unique @map("book_assignment_id")
+  /// 저장소 객체 키(drawings/{assignmentId}/{uuid}.png)
+  imageUrl         String   @map("image_url")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  assignment BookAssignment     @relation(fields: [bookAssignmentId], references: [id])
+  reflection DrawingReflection?
+
+  @@map("drawings")
+}
+
+model DrawingReflection {
+  id         Int      @id @default(autoincrement())
+  drawingId  Int      @unique @map("drawing_id")
+  /// 원본 음성 미저장 방침으로 항상 NULL
+  audioUrl   String?  @map("audio_url")
+  transcript String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  drawing Drawing @relation(fields: [drawingId], references: [id])
+
+  @@map("drawing_reflections")
+}
+
+// ---------------------------------------------------------------------
+// 4. 스탬프·보상
+// ---------------------------------------------------------------------
+
+/// 책 완료 시 1개(20% 확률로 2개). CHECK amount > 0(chk_stamp_amount) — 마이그레이션 SQL에 있음
+model StudentStamp {
+  id               Int      @id @default(autoincrement())
+  studentId        Int      @map("student_id")
+  bookAssignmentId Int      @unique @map("book_assignment_id")
+  amount           Int      @default(1) @db.SmallInt
+  earnedAt         DateTime @default(now()) @map("earned_at") @db.Timestamptz(6)
+
+  student    Student        @relation(fields: [studentId], references: [id])
+  assignment BookAssignment @relation(fields: [bookAssignmentId], references: [id])
+
+  @@index([studentId])
+  @@map("student_stamps")
+}
+
+/// 누적 스탬프 목표치(5, 10, 15…)마다 보호자가 정한 보상 1개. CHECK required_stamps > 0 — 마이그레이션 SQL에 있음
+model ParentReward {
+  id             Int      @id @default(autoincrement())
+  parentId       Int      @map("parent_id")
+  studentId      Int      @map("student_id")
+  /// 보상 목표치 = 누적 스탬프 수
+  requiredStamps Int      @map("required_stamps")
+  name           String   @db.VarChar(100)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  parent  Parent  @relation(fields: [parentId], references: [id])
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@unique([studentId, requiredStamps])
+  @@map("parent_rewards")
+}
+
+// ---------------------------------------------------------------------
+// 5. 로그인 세션 저장소 (connect-pg-simple 기본 형식, 앱 코드에서 직접 쓰지 않음)
+// ---------------------------------------------------------------------
+
+model UserSession {
+  sid    String   @id @db.VarChar
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "idx_user_sessions_expire")
+  @@map("user_sessions")
+}

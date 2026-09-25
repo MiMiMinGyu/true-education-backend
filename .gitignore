@@ -59,3 +59,6 @@ CLAUDE.local.md
 
 # 기획·설계 문서는 로컬에서만 관리
 docs/
+
+# Prisma Client (prisma generate로 생성)
+/src/generated/
