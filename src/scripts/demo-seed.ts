@@ -10,6 +10,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { generateStudentCode } from '../auth/utils/student-code.util';
 import { PASSWORD_SALT_ROUNDS } from '../common/constants/auth.constants';
+import { CONSENT_ITEMS } from '../common/constants/consent.constants';
 import { currentYearKst, todayKst } from '../common/utils/kst-date.util';
 import { ContentImportService } from '../content/content-import.service';
 import { ContentModule } from '../content/content.module';
@@ -173,12 +174,14 @@ async function removeDemoAccounts(tx: Prisma.TransactionClient) {
     await tx.bookAssignment.deleteMany({ where: { studentId: student.id } });
     await tx.parentReward.deleteMany({ where: { studentId: student.id } });
     await tx.parentStudent.deleteMany({ where: { studentId: student.id } });
+    await tx.userConsent.deleteMany({ where: { studentId: student.id } });
   }
   const parent = await tx.parent.findUnique({
     where: { loginId: DEMO_PARENT.loginId },
     select: { id: true },
   });
   if (parent) {
+    await tx.userConsent.deleteMany({ where: { parentId: parent.id } });
     await tx.parentReward.deleteMany({ where: { parentId: parent.id } });
     await tx.parentStudent.deleteMany({ where: { parentId: parent.id } });
     await tx.parent.delete({ where: { id: parent.id } });
@@ -252,6 +255,26 @@ async function main() {
               create: { studentId: student.id, guardianConsentAgreed: true },
             },
           },
+        });
+        // 가입 화면에서 필수 항목에 모두 동의한 것과 같게 기록합니다.
+        await tx.userConsent.createMany({
+          data: [
+            ...CONSENT_ITEMS.STUDENT.map((item) => ({
+              subjectType: 'STUDENT' as const,
+              studentId: student.id,
+              consentKey: item.key,
+              version: item.version,
+            })),
+            ...CONSENT_ITEMS.PARENT.filter((item) => item.required).map(
+              (item) => ({
+                subjectType: 'PARENT' as const,
+                parentId: parent.id,
+                studentId: item.aboutChild ? student.id : null,
+                consentKey: item.key,
+                version: item.version,
+              }),
+            ),
+          ],
         });
 
         for (const [i, day] of HISTORY.entries()) {

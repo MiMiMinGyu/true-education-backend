@@ -1,6 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsNotEmpty, IsString } from 'class-validator';
+import {
+  ArrayUnique,
+  IsArray,
+  IsIn,
+  IsNotEmpty,
+  IsString,
+} from 'class-validator';
+import { consentKeys } from '../../common/constants/consent.constants';
 import { SignupBaseDto } from './signup-base.dto';
+
+const PARENT_CONSENTS = consentKeys('PARENT');
 
 export class SignupParentDto extends SignupBaseDto {
   @ApiProperty({
@@ -12,20 +21,14 @@ export class SignupParentDto extends SignupBaseDto {
   studentCode: string;
 
   @ApiProperty({
-    example: true,
-    description: '이용약관·개인정보 처리방침 동의(필수)',
+    example: PARENT_CONSENTS.filter((key) => key !== 'marketing'),
+    enum: PARENT_CONSENTS,
+    isArray: true,
+    description:
+      '동의한 항목 id(가입 화면 체크 항목). marketing만 선택이고 나머지 다섯 항목은 필수, 하나라도 빠지면 400',
   })
-  @IsBoolean()
-  termsAgreed: boolean;
-
-  @ApiProperty({ example: false, description: '마케팅 정보 수신 동의(선택)' })
-  @IsBoolean()
-  marketingAgreed: boolean;
-
-  @ApiProperty({
-    example: true,
-    description: '자녀 개인정보 수집·이용 동의(법정대리인, 필수)',
-  })
-  @IsBoolean()
-  guardianConsentAgreed: boolean;
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(PARENT_CONSENTS, { each: true })
+  agreements: string[];
 }

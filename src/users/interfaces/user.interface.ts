@@ -17,6 +17,14 @@ export interface ParentAccount {
   name: string;
 }
 
+/** 동의한 항목 1개(user_consents 한 행) */
+export interface NewConsent {
+  key: string;
+  version: string;
+  /** 보호자 동의 중 연결한 자녀에 대한 항목 */
+  aboutChild: boolean;
+}
+
 export interface NewStudent {
   loginId: string;
   passwordHash: string;
@@ -24,6 +32,7 @@ export interface NewStudent {
   birthYear: number | null;
   studentCode: string;
   guardianShareAgreed: boolean;
+  consents: NewConsent[];
 }
 
 export interface NewParent {
@@ -32,6 +41,7 @@ export interface NewParent {
   name: string;
   termsAgreed: boolean;
   marketingAgreed: boolean;
+  consents: NewConsent[];
 }
 
 export interface NewParentLink {

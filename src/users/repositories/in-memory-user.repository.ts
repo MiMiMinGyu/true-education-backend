@@ -7,6 +7,7 @@ import {
 import { IUserRepository } from '../interfaces/user-repository.interface';
 import {
   NewParent,
+  NewConsent,
   NewParentLink,
   NewStudent,
   ParentAccount,
@@ -28,6 +29,11 @@ export class InMemoryUserRepository implements IUserRepository {
     marketingAgreed: boolean;
   })[] = [];
   readonly links: ParentStudentLink[] = [];
+  readonly consents: (NewConsent & {
+    subjectType: 'STUDENT' | 'PARENT';
+    parentId: number | null;
+    studentId: number | null;
+  })[] = [];
   private nextId = 1;
 
   async isLoginIdTaken(loginId: string): Promise<boolean> {
@@ -60,8 +66,17 @@ export class InMemoryUserRepository implements IUserRepository {
     if (this.students.some((s) => s.studentCode === student.studentCode)) {
       throw new StudentCodeTakenError();
     }
-    const saved = { id: this.nextId++, ...student };
+    const { consents, ...data } = student;
+    const saved = { id: this.nextId++, ...data };
     this.students.push(saved);
+    for (const consent of consents) {
+      this.consents.push({
+        ...consent,
+        subjectType: 'STUDENT',
+        parentId: null,
+        studentId: saved.id,
+      });
+    }
     return saved;
   }
 
@@ -78,8 +93,17 @@ export class InMemoryUserRepository implements IUserRepository {
     if (!student) {
       throw new StudentCodeNotFoundError();
     }
-    const saved = { id: this.nextId++, ...parent };
+    const { consents, ...data } = parent;
+    const saved = { id: this.nextId++, ...data };
     this.parents.push(saved);
+    for (const consent of consents) {
+      this.consents.push({
+        ...consent,
+        subjectType: 'PARENT',
+        parentId: saved.id,
+        studentId: consent.aboutChild ? student.id : null,
+      });
+    }
     this.links.push({
       parentId: saved.id,
       studentId: student.id,

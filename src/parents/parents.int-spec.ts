@@ -58,9 +58,13 @@ describe('보호자 대시보드·보상 (통합)', () => {
         loginId,
         password: 'password123',
         studentCode,
-        termsAgreed: true,
-        marketingAgreed: false,
-        guardianConsentAgreed: true,
+        agreements: [
+          'terms',
+          'guardianPrivacy',
+          'childPrivacy',
+          'childSpeech',
+          'guardianDashboard',
+        ],
       })
       .expect(201);
     await agent
@@ -177,6 +181,23 @@ describe('보호자 대시보드·보상 (통합)', () => {
   it('대시보드 v3: 기록 요건 전에는 기록 부족, 5권 완료 후 영역별 판정·문구·묶음, 기간 밖 책은 제외', async () => {
     const kid = await loginAsNewStudent(ctx.app, 'kid10');
     const parent = await loginAsLinkedParent(kid.studentCode, 'parent10');
+
+    // 가입 동의가 항목별로 기록된다(학생 3개, 보호자 필수 5개 중 자녀 관련 3개는 대상 자녀 포함)
+    const consents = await ctx.prisma.userConsent.findMany({
+      orderBy: { id: 'asc' },
+    });
+    expect(
+      consents.map((c) => [c.subjectType, c.consentKey, c.studentId]),
+    ).toEqual([
+      ['STUDENT', 'activityRecord', kid.studentId],
+      ['STUDENT', 'speechToText', kid.studentId],
+      ['STUDENT', 'guardianView', kid.studentId],
+      ['PARENT', 'terms', null],
+      ['PARENT', 'guardianPrivacy', null],
+      ['PARENT', 'childPrivacy', kid.studentId],
+      ['PARENT', 'childSpeech', kid.studentId],
+      ['PARENT', 'guardianDashboard', kid.studentId],
+    ]);
 
     expect((await parent.get('/parents/me/students').expect(200)).body).toEqual(
       [{ studentId: kid.studentId, name: '테스트' }],
