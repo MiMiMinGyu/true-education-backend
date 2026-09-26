@@ -1,5 +1,4 @@
-import { LearningStage } from '../../common/constants/learning.constants';
-import { CompletedBookResult, DailyReading } from '../utils/dashboard.util';
+import { PeriodBook } from '../utils/dashboard.util';
 
 export const PARENT_REPOSITORY = Symbol('PARENT_REPOSITORY');
 
@@ -8,24 +7,23 @@ export interface LinkedStudent {
   name: string;
 }
 
-export interface CompletedBookDetail extends CompletedBookResult {
+export interface DashboardBook extends PeriodBook {
   /** 학생이 지은 제목, 없으면 원제 */
   title: string;
+  completedAt: Date;
   reflection: { transcript: string; durationMs: number } | null;
+}
+
+/** 날짜는 Asia/Seoul 기준 'YYYY-MM-DD'(양 끝 포함) */
+export interface DashboardPeriod {
+  startDate: string;
+  endDate: string;
 }
 
 export interface DashboardSource {
   student: { id: number; name: string };
-  stampTotal: number;
-  inProgress: {
-    assignmentId: number;
-    title: string;
-    stage: LearningStage;
-  } | null;
-  /** 최근 완료 순 */
-  completedBooks: CompletedBookDetail[];
-  /** 최근 학습 날짜 limit일(날짜 내림차순) */
-  dailyReading: DailyReading[];
+  /** 기간 안에 완료한 책, 최근 완료 순 */
+  books: DashboardBook[];
 }
 
 export interface IParentRepository {
@@ -33,6 +31,6 @@ export interface IParentRepository {
   isLinked(parentId: number, studentId: number): Promise<boolean>;
   getDashboardSource(
     studentId: number,
-    readingDays: number,
+    period: DashboardPeriod,
   ): Promise<DashboardSource | null>;
 }
