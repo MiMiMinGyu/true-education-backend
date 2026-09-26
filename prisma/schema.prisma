@@ -31,6 +31,7 @@ model Student {
   assignments   BookAssignment[]
   stamps        StudentStamp[]
   parentRewards ParentReward[]
+  consents      UserConsent[]
 
   @@map("students")
 }
@@ -46,6 +47,7 @@ model Parent {
 
   students ParentStudent[]
   rewards  ParentReward[]
+  consents UserConsent[]
 
   @@map("parents")
 }
@@ -63,6 +65,34 @@ model ParentStudent {
   @@id([parentId, studentId])
   @@index([studentId])
   @@map("parent_students")
+}
+
+enum ConsentSubject {
+  STUDENT
+  PARENT
+}
+
+/// 가입 동의 기록: 항목마다 한 행(항목 키·문구 버전·시각). 항목 목록은 src/common/constants/consent.constants.ts
+/// 학생 본인 동의 = student_id만, 보호자 동의 = parent_id(+ 자녀 관련 항목이면 대상 자녀 student_id).
+/// CHECK chk_consent_subject — 마이그레이션 SQL에 있음
+model UserConsent {
+  id          Int            @id @default(autoincrement())
+  subjectType ConsentSubject @map("subject_type")
+  parentId    Int?           @map("parent_id")
+  studentId   Int?           @map("student_id")
+  consentKey  String         @map("consent_key") @db.VarChar(50)
+  version     String         @db.VarChar(20)
+  agreedAt    DateTime       @default(now()) @map("agreed_at") @db.Timestamptz(6)
+  /// 선택 항목 철회 시각(철회 API는 아직 없음)
+  withdrawnAt DateTime?      @map("withdrawn_at") @db.Timestamptz(6)
+
+  // 동의 기록은 증빙이라 계정을 지우려면 기록을 먼저 지워야 합니다(RESTRICT).
+  parent  Parent?  @relation(fields: [parentId], references: [id], onDelete: Restrict)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@index([parentId])
+  @@index([studentId])
+  @@map("user_consents")
 }
 
 // ---------------------------------------------------------------------

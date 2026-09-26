@@ -499,9 +499,13 @@ describe('학습 흐름 (통합)', () => {
         loginId: 'parent01',
         password: 'password123',
         studentCode: owner.studentCode,
-        termsAgreed: true,
-        marketingAgreed: false,
-        guardianConsentAgreed: true,
+        agreements: [
+          'terms',
+          'guardianPrivacy',
+          'childPrivacy',
+          'childSpeech',
+          'guardianDashboard',
+        ],
       })
       .expect(201);
     await parent

@@ -84,7 +84,7 @@ export async function loginAsNewStudent(
     loginId,
     password: 'password123',
     age: 8,
-    guardianShareAgreed: true,
+    agreements: ['activityRecord', 'speechToText', 'guardianView'],
   });
   if (signup.status !== 201) throw new Error(`signup failed: ${signup.status}`);
   await agent

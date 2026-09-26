@@ -11,6 +11,11 @@ import {
   LOGIN_FAILED_MESSAGE,
   PASSWORD_SALT_ROUNDS,
 } from '../common/constants/auth.constants';
+import {
+  CONSENT_ITEMS,
+  missingRequiredConsents,
+  type ConsentRole,
+} from '../common/constants/consent.constants';
 import { currentYearKst } from '../common/utils/kst-date.util';
 import {
   LoginIdTakenError,
@@ -34,6 +39,26 @@ import { generateStudentCode } from './utils/student-code.util';
 const STUDENT_CODE_MAX_ATTEMPTS = 5;
 const LOGIN_ID_TAKEN_MESSAGE = '이미 사용 중인 아이디입니다.';
 
+/**
+ * 동의한 항목을 기록할 형태로 바꿉니다. 필수 항목이 하나라도 빠지면 400입니다
+ * (동의는 선택권이 아니라 사전 고지 목적이라 필수 항목 없이는 가입할 수 없음).
+ */
+function consentsFor(role: ConsentRole, agreed: string[]) {
+  const missing = missingRequiredConsents(role, agreed);
+  if (missing.length > 0) {
+    throw new BadRequestException(
+      `필수 동의 항목에 모두 동의해 주세요: ${missing.join(', ')}`,
+    );
+  }
+  return CONSENT_ITEMS[role]
+    .filter((item) => agreed.includes(item.key))
+    .map((item) => ({
+      key: item.key,
+      version: item.version,
+      aboutChild: item.aboutChild ?? false,
+    }));
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -47,9 +72,7 @@ export class AuthService {
   async signupStudent(
     dto: SignupStudentDto,
   ): Promise<SignupStudentResponseDto> {
-    if (dto.guardianShareAgreed !== true) {
-      throw new BadRequestException('보호자 전달 동의가 필요합니다.');
-    }
+    const consents = consentsFor('STUDENT', dto.agreements);
     const passwordHash = await hash(dto.password, PASSWORD_SALT_ROUNDS);
     const birthYear = dto.age === undefined ? null : currentYearKst() - dto.age;
 
@@ -61,7 +84,8 @@ export class AuthService {
           name: dto.name,
           birthYear,
           studentCode: generateStudentCode(),
-          guardianShareAgreed: true,
+          guardianShareAgreed: dto.agreements.includes('guardianView'),
+          consents,
         });
         return { id: student.id, studentCode: student.studentCode };
       } catch (error) {
@@ -80,16 +104,8 @@ export class AuthService {
   }
 
   async signupParent(dto: SignupParentDto): Promise<SignupParentResponseDto> {
-    if (dto.termsAgreed !== true) {
-      throw new BadRequestException(
-        '이용약관 및 개인정보 처리방침 동의가 필요합니다.',
-      );
-    }
-    if (dto.guardianConsentAgreed !== true) {
-      throw new BadRequestException(
-        '자녀 개인정보 수집·이용 동의가 필요합니다.',
-      );
-    }
+    const consents = consentsFor('PARENT', dto.agreements);
+    const agreed = (key: string) => dto.agreements.includes(key);
     const passwordHash = await hash(dto.password, PASSWORD_SALT_ROUNDS);
 
     try {
@@ -98,10 +114,15 @@ export class AuthService {
           loginId: dto.loginId,
           passwordHash,
           name: dto.name,
-          termsAgreed: true,
-          marketingAgreed: dto.marketingAgreed,
+          // 항목별 기록은 user_consents에 남기고, 기존 요약 컬럼도 함께 채웁니다.
+          termsAgreed: agreed('terms') && agreed('guardianPrivacy'),
+          marketingAgreed: agreed('marketing'),
+          consents,
         },
-        { studentCode: dto.studentCode, guardianConsentAgreed: true },
+        {
+          studentCode: dto.studentCode,
+          guardianConsentAgreed: agreed('childPrivacy'),
+        },
       );
       return { id: parent.id };
     } catch (error) {

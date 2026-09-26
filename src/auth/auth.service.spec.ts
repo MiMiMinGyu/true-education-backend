@@ -20,7 +20,7 @@ const studentDto = (
   loginId: 'student01',
   password: 'password123',
   age: 8,
-  guardianShareAgreed: true,
+  agreements: ['activityRecord', 'speechToText', 'guardianView'],
   ...overrides,
 });
 
@@ -32,9 +32,13 @@ const parentDto = (
   loginId: 'parent01',
   password: 'password123',
   studentCode,
-  termsAgreed: true,
-  marketingAgreed: false,
-  guardianConsentAgreed: true,
+  agreements: [
+    'terms',
+    'guardianPrivacy',
+    'childPrivacy',
+    'childSpeech',
+    'guardianDashboard',
+  ],
   ...overrides,
 });
 
@@ -100,11 +104,29 @@ describe('AuthService', () => {
       expect(await compare('password123', saved.passwordHash)).toBe(true);
     });
 
-    it('보호자 전달 동의가 없으면 BadRequestException', async () => {
+    it('필수 동의 세 항목 중 하나라도 빠지면 BadRequestException', async () => {
       await expect(
-        service.signupStudent(studentDto({ guardianShareAgreed: false })),
-      ).rejects.toThrow(BadRequestException);
+        service.signupStudent(
+          studentDto({ agreements: ['activityRecord', 'guardianView'] }),
+        ),
+      ).rejects.toThrow('speechToText');
       expect(repository.students).toHaveLength(0);
+      expect(repository.consents).toHaveLength(0);
+    });
+
+    it('동의 항목마다 버전과 함께 기록하고 요약 컬럼도 채운다', async () => {
+      const { id } = await service.signupStudent(studentDto());
+      expect(repository.students[0].guardianShareAgreed).toBe(true);
+      expect(repository.consents).toEqual(
+        ['activityRecord', 'speechToText', 'guardianView'].map((key) => ({
+          key,
+          version: '2026-09-26',
+          aboutChild: false,
+          subjectType: 'STUDENT',
+          parentId: null,
+          studentId: id,
+        })),
+      );
     });
 
     it('보호자 계정이 쓰는 아이디면 ConflictException', async () => {
@@ -176,15 +198,47 @@ describe('AuthService', () => {
     });
 
     it.each([
-      ['이용약관', { termsAgreed: false }],
-      ['자녀 개인정보 수집·이용', { guardianConsentAgreed: false }],
-    ])('%s 동의가 없으면 BadRequestException', async (_label, overrides) => {
+      'terms',
+      'guardianPrivacy',
+      'childPrivacy',
+      'childSpeech',
+      'guardianDashboard',
+    ])('필수 항목 %s가 빠지면 BadRequestException', async (missing) => {
       const { studentCode } = await service.signupStudent(studentDto());
+      const agreements = parentDto(studentCode).agreements.filter(
+        (key) => key !== missing,
+      );
 
       await expect(
-        service.signupParent(parentDto(studentCode, overrides)),
+        service.signupParent(parentDto(studentCode, { agreements })),
       ).rejects.toThrow(BadRequestException);
       expect(repository.parents).toHaveLength(0);
+    });
+
+    it('자녀 관련 동의에는 대상 자녀를 남기고, 마케팅은 선택이다', async () => {
+      const student = await service.signupStudent(studentDto());
+      const parent = await service.signupParent(
+        parentDto(student.studentCode, {
+          agreements: [...parentDto('').agreements, 'marketing'],
+        }),
+      );
+      const parentConsents = repository.consents.filter(
+        (c) => c.subjectType === 'PARENT',
+      );
+      expect(
+        parentConsents.map((c) => [c.key, c.parentId, c.studentId]),
+      ).toEqual([
+        ['terms', parent.id, null],
+        ['guardianPrivacy', parent.id, null],
+        ['childPrivacy', parent.id, student.id],
+        ['childSpeech', parent.id, student.id],
+        ['guardianDashboard', parent.id, student.id],
+        ['marketing', parent.id, null],
+      ]);
+      expect(repository.parents[0]).toMatchObject({
+        termsAgreed: true,
+        marketingAgreed: true,
+      });
     });
 
     it('학생 계정이 쓰는 아이디면 ConflictException', async () => {

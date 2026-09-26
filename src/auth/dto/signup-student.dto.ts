@@ -1,10 +1,21 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+  ArrayUnique,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  Max,
+  Min,
+} from 'class-validator';
 import {
   STUDENT_AGE_MAX,
   STUDENT_AGE_MIN,
 } from '../../common/constants/auth.constants';
+import { consentKeys } from '../../common/constants/consent.constants';
 import { SignupBaseDto } from './signup-base.dto';
+
+const STUDENT_CONSENTS = consentKeys('STUDENT');
 
 export class SignupStudentDto extends SignupBaseDto {
   @ApiPropertyOptional({
@@ -21,10 +32,14 @@ export class SignupStudentDto extends SignupBaseDto {
   age?: number;
 
   @ApiProperty({
-    example: true,
+    example: STUDENT_CONSENTS,
+    enum: STUDENT_CONSENTS,
+    isArray: true,
     description:
-      '학습 내용 보호자 전달 동의(필수, 사전 고지). true가 아니면 400',
+      '동의한 항목 id(가입 화면 체크 항목). 세 항목 모두 필수이며 하나라도 빠지면 400',
   })
-  @IsBoolean()
-  guardianShareAgreed: boolean;
+  @IsArray()
+  @ArrayUnique()
+  @IsIn(STUDENT_CONSENTS, { each: true })
+  agreements: string[];
 }

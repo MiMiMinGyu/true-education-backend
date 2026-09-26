@@ -80,7 +80,17 @@ export class PrismaUserRepository implements IUserRepository {
       if (codeOwner) {
         throw new StudentCodeTakenError();
       }
-      return tx.student.create({ data: student, select: STUDENT_SELECT });
+      const { consents, ...data } = student;
+      const created = await tx.student.create({ data, select: STUDENT_SELECT });
+      await tx.userConsent.createMany({
+        data: consents.map((consent) => ({
+          subjectType: 'STUDENT' as const,
+          studentId: created.id,
+          consentKey: consent.key,
+          version: consent.version,
+        })),
+      });
+      return created;
     });
   }
 
@@ -100,9 +110,10 @@ export class PrismaUserRepository implements IUserRepository {
       if (!student) {
         throw new StudentCodeNotFoundError();
       }
-      return tx.parent.create({
+      const { consents, ...data } = parent;
+      const created = await tx.parent.create({
         data: {
-          ...parent,
+          ...data,
           students: {
             create: {
               studentId: student.id,
@@ -112,6 +123,16 @@ export class PrismaUserRepository implements IUserRepository {
         },
         select: PARENT_SELECT,
       });
+      await tx.userConsent.createMany({
+        data: consents.map((consent) => ({
+          subjectType: 'PARENT' as const,
+          parentId: created.id,
+          studentId: consent.aboutChild ? student.id : null,
+          consentKey: consent.key,
+          version: consent.version,
+        })),
+      });
+      return created;
     });
   }
 }
