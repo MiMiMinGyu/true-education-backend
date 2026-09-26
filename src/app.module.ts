@@ -9,6 +9,7 @@ import { ParentsModule } from './parents/parents.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { StorageModule } from './storage/storage.module';
+import { TtsModule } from './tts/tts.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { UsersModule } from './users/users.module';
     BookshelfModule,
     RewardsModule,
     ParentsModule,
+    TtsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
