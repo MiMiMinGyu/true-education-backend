@@ -1,0 +1,56 @@
+export type LearningStage =
+  | 'READING'
+  | 'QUESTION'
+  | 'ORDERING'
+  | 'TITLE'
+  | 'DRAWING'
+  | 'REFLECTION'
+  | 'COMPLETED';
+
+export type ActivityStage = Exclude<LearningStage, 'COMPLETED'>;
+
+/**
+ * 책 1권의 활동 순서. 여기서 빼면 그 단계는 건너뜁니다(마지막 단계를 마치면 완료).
+ * DRAWING·REFLECTION은 프론트 그림 그리기 화면이 main에 머지되어 켰습니다(2026-09-26).
+ */
+export const LEARNING_STAGES: readonly ActivityStage[] = [
+  'READING',
+  'QUESTION',
+  'ORDERING',
+  'TITLE',
+  'DRAWING',
+  'REFLECTION',
+];
+
+/** 전체 단계 순서(비교용). LEARNING_STAGES에서 뺀 단계도 순서 비교에는 필요합니다 */
+export const STAGE_ORDER: readonly LearningStage[] = [
+  'READING',
+  'QUESTION',
+  'ORDERING',
+  'TITLE',
+  'DRAWING',
+  'REFLECTION',
+  'COMPLETED',
+];
+
+export const STAGE_LABELS: Record<ActivityStage, string> = {
+  READING: '번갈아 읽기',
+  QUESTION: '이해 질문',
+  ORDERING: '순서 맞추기',
+  TITLE: '제목 짓기',
+  DRAWING: '그림 그리기',
+  REFLECTION: '설명 말하기',
+};
+
+/** 번갈아 읽기 한 페이지의 줄 수(시안 기준) */
+export const LINES_PER_PAGE = 3;
+/** 이 범위를 벗어난 줄 읽기 시간은 읽기 속도 집계에서 뺍니다(줄이 문단 단위라 길 수 있어 상한 3분) */
+export const READING_MIN_MS = 300;
+export const READING_MAX_MS = 180_000;
+
+export const CHOICE_MAX_ATTEMPTS = 2;
+export const ORDERING_MAX_ATTEMPTS = 3;
+
+/** 새 책 고르는 방식: 아직 배정하지 않은 책 중 무작위 / id 순서대로 */
+export type BookSelectionStrategy = 'RANDOM' | 'SEQUENTIAL';
+export const BOOK_SELECTION: BookSelectionStrategy = 'RANDOM';

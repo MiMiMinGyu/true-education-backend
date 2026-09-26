@@ -59,6 +59,10 @@ jobs:
       - name: Unit tests
         run: npm test -- --ci
 
+      # 테스트 전용 DB(true_education_test)를 자동으로 만들어 앱을 띄우고 API 흐름을 순서대로 검증합니다.
+      - name: Integration tests
+        run: npm run test:int -- --ci
+
       - name: Build
         run: npm run build
 
