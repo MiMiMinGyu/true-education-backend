@@ -69,6 +69,10 @@ jobs:
       - name: Check schema matches migrations
         run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
 
+      # 시드 JSON이 검증을 통과하고 실제 DB에 적재되는지 확인합니다(실패 시 종료 코드 1).
+      - name: Seed dev content
+        run: node dist/scripts/seed-content.js
+
       # 빌드 결과가 실제로 DB에 붙어 기동되는지 확인합니다(DI 설정·환경변수 누락 등은 단위 테스트로 잡히지 않음).
       - name: Smoke test
         run: |
