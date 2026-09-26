@@ -8,6 +8,7 @@ import {
 import {
   CHOICE_MAX_ATTEMPTS,
   LearningStage,
+  ORDERING_HINT_AFTER_WRONG,
   ORDERING_MAX_ATTEMPTS,
 } from '../common/constants/learning.constants';
 import { todayKst } from '../common/utils/kst-date.util';
@@ -51,6 +52,14 @@ function progressOf(attempts: AttemptRecord[], maxAttempts: number) {
     solved,
     finished: solved || attempts.length >= maxAttempts,
   };
+}
+
+/** 순서 맞추기: ORDERING_HINT_AFTER_WRONG번 틀린 뒤부터 가장 먼저 일어난 일(정답 첫 카드)을 알려 줍니다 */
+function orderingHint(question: QuestionData, wrongCount: number) {
+  if (wrongCount < ORDERING_HINT_AFTER_WRONG) return null;
+  const [firstId] = question.correctAnswer as string[];
+  const first = (question.options as Card[]).find((c) => c.id === firstId);
+  return first ? `가장 먼저 일어난 일은 「${first.text}」` : null;
 }
 
 function attemptsFor(
@@ -185,6 +194,10 @@ export class QuizService {
       question.id,
     );
     const progress = progressOf(attempts, ORDERING_MAX_ATTEMPTS);
+    // 힌트를 받은 뒤 다시 들어와도 이어서 보여 줍니다(오답 전에는 절대 내려가지 않음).
+    const hint = progress.finished
+      ? null
+      : orderingHint(question, progress.attempts);
 
     return {
       questionId: question.id,
@@ -200,6 +213,7 @@ export class QuizService {
           correct: progress.solved,
           answer: question.correctAnswer as string[],
         }),
+        ...(hint && { hint }),
       },
     };
   }
@@ -245,14 +259,15 @@ export class QuizService {
         : { stage: 'ORDERING' as const };
 
       if (correct) return { correct, finished, stage };
-      return finished
-        ? { correct, finished, answer: correctOrder, stage }
-        : {
-            correct,
-            finished,
-            remaining: ORDERING_MAX_ATTEMPTS - attemptNumber,
-            stage,
-          };
+      if (finished) return { correct, finished, answer: correctOrder, stage };
+      const hint = orderingHint(question, attemptNumber);
+      return {
+        correct,
+        finished,
+        remaining: ORDERING_MAX_ATTEMPTS - attemptNumber,
+        ...(hint && { hint }),
+        stage,
+      };
     });
   }
 

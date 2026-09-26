@@ -275,7 +275,21 @@ describe('학습 흐름 (통합)', () => {
       remaining: 2,
       stage: 'ORDERING',
     });
-    expect((await order(reversed).expect(201)).body.remaining).toBe(1);
+    // 2번째 오답부터 "가장 먼저 일어난 일" 힌트(정답 첫 카드), 다시 들어와도 이어서
+    const firstCard = (
+      data.ordering.options as { id: string; text: string }[]
+    ).find((card) => card.id === answer[0])!;
+    const hint = `가장 먼저 일어난 일은 「${firstCard.text}」`;
+    expect((await order(reversed).expect(201)).body).toEqual({
+      correct: false,
+      finished: false,
+      remaining: 1,
+      hint,
+      stage: 'ORDERING',
+    });
+    expect(
+      (await agent.get(`/assignments/${id}/ordering`).expect(200)).body.state,
+    ).toEqual({ attempts: 2, remaining: 1, finished: false, hint });
     expect((await order(reversed).expect(201)).body).toEqual({
       correct: false,
       finished: true,
