@@ -24,5 +24,7 @@ import { StampsController } from './stamps.controller';
     ProgressService,
     BookMakingService,
   ],
+  // 서재 등 다른 모듈이 배정 소유권 확인에 씁니다.
+  exports: [LEARNING_REPOSITORY, AssignmentOwnerGuard],
 })
 export class LearningModule {}
