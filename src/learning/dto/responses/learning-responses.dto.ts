@@ -183,6 +183,12 @@ export class OrderingStateDto {
     description: '끝났을 때만: 정답 순서',
   })
   answer?: string[];
+  @ApiPropertyOptional({
+    example:
+      '가장 먼저 일어난 일은 「작은 곰이 숲속 길에서 꿀단지를 발견했어요.」',
+    description: '2번 틀리고 아직 안 끝났을 때만: 이어하기용 힌트',
+  })
+  hint?: string;
 }
 
 export class OrderingResponseDto {
@@ -210,6 +216,12 @@ export class OrderingAttemptResponseDto {
     description: '3회 오답일 때: 정답 순서',
   })
   answer?: string[];
+  @ApiPropertyOptional({
+    example:
+      '가장 먼저 일어난 일은 「작은 곰이 숲속 길에서 꿀단지를 발견했어요.」',
+    description: '2번째 오답(기회가 남았을 때): 가장 먼저 일어난 일',
+  })
+  hint?: string;
   @ApiProperty({ enum: STAGES }) stage: LearningStage;
 }
 

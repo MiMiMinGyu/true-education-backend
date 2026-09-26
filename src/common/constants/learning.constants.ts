@@ -50,6 +50,8 @@ export const READING_MAX_MS = 180_000;
 
 export const CHOICE_MAX_ATTEMPTS = 2;
 export const ORDERING_MAX_ATTEMPTS = 3;
+/** 순서 맞추기를 이만큼 틀리면(아직 기회가 남았을 때) "가장 먼저 일어난 일" 힌트를 줍니다(프론트 시안) */
+export const ORDERING_HINT_AFTER_WRONG = 2;
 
 /** 학생이 지은 제목(앞뒤 공백 제거 후). 프론트 입력 제한(30자)보다 넉넉하게 둡니다 */
 export const TITLE_MAX_LENGTH = 50;

@@ -9,6 +9,7 @@ import {
   NEEDS_SUPPORT_MIN_SESSIONS,
   SUPPORTED_MIN_RATE,
 } from '../../common/constants/dashboard';
+import { ORDERING_HINT_AFTER_WRONG } from '../../common/constants/learning.constants';
 import type {
   QuestionFormat,
   QuestionStage,
@@ -121,6 +122,16 @@ function emptyMetrics(): AreaMetrics {
   };
 }
 
+/**
+ * 정답을 맞히기 전에 힌트를 봤는지. 이해 질문은 1번 틀리면, 순서 맞추기는
+ * ORDERING_HINT_AFTER_WRONG번 틀리면 힌트를 보여 줍니다.
+ */
+function sawHintBeforeCorrect(q: PeriodBook['questions'][number]): boolean {
+  const wrongBeforeCorrect = q.attempts.findIndex((a) => a.isCorrect);
+  const hintAfter = q.format === 'CHOICE' ? 1 : ORDERING_HINT_AFTER_WRONG;
+  return wrongBeforeCorrect >= hintAfter;
+}
+
 function metricsOf(id: AreaId, books: PeriodBook[]) {
   const metrics = emptyMetrics();
   if (id === 'gist') {
@@ -158,8 +169,7 @@ function metricsOf(id: AreaId, books: PeriodBook[]) {
       // 완료한 책이라 끝까지 못 맞힌 문제는 모두 정답이 공개된 문제입니다.
       metrics.firstErrorWithoutVerifiedRecoveryCount++;
       metrics.answerRevealedQuestionCount++;
-    } else if (q.format === 'CHOICE') {
-      // 이해 질문은 1차 오답이면 힌트를 보여 준 뒤 다시 풉니다.
+    } else if (sawHintBeforeCorrect(q)) {
       metrics.firstErrorRecoveredWithHintCount++;
     } else {
       metrics.firstErrorRecoveredWithoutHintCount++;

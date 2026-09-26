@@ -119,6 +119,21 @@ describe('assessArea (v3 판정·문구)', () => {
     expect(retried.recoveryTexts).toEqual([
       '첫 답에서 틀린 문제 중 1개는 힌트 없이 다시 풀어 맞혔어요.',
     ]);
+
+    // 2번 틀리면 "가장 먼저 일어난 일" 힌트를 보므로, 3번째 정답은 힌트를 본 뒤 맞힌 것
+    const afterHint = assessArea(
+      'sequence',
+      books([
+        { ORDER: [true] },
+        { ORDER: [true] },
+        { ORDER: [true] },
+        { ORDER: [true] },
+        { ORDER: [false, false, true] },
+      ]),
+    );
+    expect(afterHint.recoveryTexts).toEqual([
+      '첫 답에서 틀린 문제 중 1개는 힌트를 본 뒤 맞혔어요.',
+    ]);
   });
 
   it('스스로 해결: 첫 독립 정답 80% 이상 (v3 예시 마음 이해 문구와 같음)', () => {
