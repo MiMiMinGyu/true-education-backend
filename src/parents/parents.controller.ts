@@ -9,6 +9,7 @@ import {
   Param,
   ParseIntPipe,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -28,7 +29,11 @@ import type { SessionUser } from '../auth/interfaces/session-user.interface';
 import { RewardBoardDto, SetRewardDto } from '../rewards/dto/rewards.dto';
 import { RewardsService } from '../rewards/rewards.service';
 import { DashboardService } from './dashboard.service';
-import { DashboardDto, LinkedStudentDto } from './dto/parents.dto';
+import {
+  DashboardDto,
+  DashboardQueryDto,
+  LinkedStudentDto,
+} from './dto/parents.dto';
 import { LinkedStudentGuard } from './guards/linked-student.guard';
 import {
   PARENT_REPOSITORY,
@@ -61,15 +66,19 @@ export class ParentsController {
   @ApiOperation({
     summary: '자녀 학습 대시보드',
     description:
-      '요약, 읽기 속도 추이, 유형별 풀이 결과와 판정(최근 완료 3권 중 2권 이상 1차 오답 = 도움 필요), 코멘트, 최근 설명 말하기.',
+      'AI 파트 명세 v3. 기간(기본 최근 14일) 안에 완료한 책으로 영역별 상태(함께 연습·연습하며 관찰·스스로 해결·기록 부족·판정 불가·활동 없음)를 판정하고, 표시할 문구를 함께 돌려줍니다.',
   })
   @ApiOkResponse({ type: DashboardDto })
+  @ApiBadRequestResponse({
+    description: '날짜 형식 오류, 시작일 > 종료일, 92일 초과',
+  })
   @UseGuards(LinkedStudentGuard)
   @Get(':studentId/dashboard')
   dashboard(
     @Param('studentId', ParseIntPipe) studentId: number,
+    @Query() query: DashboardQueryDto,
   ): Promise<DashboardDto> {
-    return this.dashboardService.dashboard(studentId);
+    return this.dashboardService.dashboard(studentId, query);
   }
 
   @ApiOperation({
