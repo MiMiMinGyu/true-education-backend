@@ -20,6 +20,8 @@
     "postinstall": "prisma generate",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
+    "setup:local": "npm run db:up && prisma migrate deploy && npm run demo:seed",
+    "db:reset": "docker compose down -v && npm run setup:local",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "content:seed": "nest build && node dist/scripts/seed-content.js",
