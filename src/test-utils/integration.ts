@@ -19,11 +19,18 @@ export interface TestContext {
   close: () => Promise<void>;
 }
 
-/** 실제 서버와 같은 설정(세션·검증)으로 앱을 띄웁니다 */
-export async function createTestApp(): Promise<TestContext> {
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
+/**
+ * 실제 서버와 같은 설정(세션·검증)으로 앱을 띄웁니다.
+ * overrides로 외부 연동(Typecast 등)만 가짜로 바꿀 수 있습니다.
+ */
+export async function createTestApp(
+  overrides: [token: symbol | string, value: unknown][] = [],
+): Promise<TestContext> {
+  let builder = Test.createTestingModule({ imports: [AppModule] });
+  for (const [token, value] of overrides) {
+    builder = builder.overrideProvider(token).useValue(value);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
   const store = configureApp(app);
   await app.init();
