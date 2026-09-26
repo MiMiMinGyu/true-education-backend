@@ -17,7 +17,9 @@ permissions:
 jobs:
   ci:
     name: lint · test · build · migrate · smoke
-    runs-on: ubuntu-latest
+    # ubuntu-latest는 GitHub가 가리키는 버전을 바꿉니다(2026-10-19부터 Ubuntu 26).
+    # 코드 변경 없이 CI 환경이 바뀌지 않도록 고정하고, 올릴 때는 이 줄을 고치는 PR로 검증합니다.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
     # 로컬 docker-compose.yml과 같은 PostgreSQL 16을 씁니다.
