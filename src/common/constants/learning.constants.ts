@@ -63,6 +63,11 @@ export const REFLECTION_MAX_DURATION_MS = 120_000;
 /** 책 완료 시 스탬프는 1개, 이 확률로 2개(보물상자 연출). 판정은 서버가 합니다 */
 export const DOUBLE_STAMP_CHANCE = 0.2;
 
+/** 누적 스탬프 이 개수마다(5, 10, 15…) 보호자가 정한 보상 1개. 프론트 REWARD_EVERY와 같은 값 */
+export const STAMPS_PER_REWARD = 5;
+/** 보상 목표치 입력 상한(잘못된 큰 값 방지). 책 200권 분량 */
+export const MAX_REWARD_MILESTONE = 1_000;
+
 /** 새 책 고르는 방식: 아직 배정하지 않은 책 중 무작위 / id 순서대로 */
 export type BookSelectionStrategy = 'RANDOM' | 'SEQUENTIAL';
 export const BOOK_SELECTION: BookSelectionStrategy = 'RANDOM';
