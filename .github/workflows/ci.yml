@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 같은 PR에 새 커밋이 올라오면 이전 실행은 취소합니다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: lint · test · build · migrate · smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # 로컬 docker-compose.yml과 같은 PostgreSQL 16을 씁니다.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: yeoul
+          POSTGRES_PASSWORD: yeoul
+          POSTGRES_DB: true_education
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U yeoul -d true_education"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://yeoul:yeoul@localhost:5432/true_education?schema=public
+      SESSION_SECRET: ci-only-session-secret
+      PORT: 4000
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # postinstall에서 prisma generate가 함께 실행됩니다.
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      # schema.prisma만 고치고 마이그레이션을 만들지 않은 경우를 잡습니다(차이가 있으면 종료 코드 2).
+      - name: Check schema matches migrations
+        run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+      # 빌드 결과가 실제로 DB에 붙어 기동되는지 확인합니다(DI 설정·환경변수 누락 등은 단위 테스트로 잡히지 않음).
+      - name: Smoke test
+        run: |
+          node dist/main > app.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:4000/ > /dev/null && break
+            sleep 1
+          done
+          curl -sf http://localhost:4000/ > /dev/null || { cat app.log; exit 1; }
+          curl -sf 'http://localhost:4000/auth/login-id/availability?loginId=ci_smoke' | grep -q '"available":true' \
+            || { cat app.log; exit 1; }
+          echo "server booted and reached the database"
