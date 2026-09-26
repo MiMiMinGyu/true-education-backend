@@ -100,18 +100,11 @@ describe('AuthService', () => {
       expect(await compare('password123', saved.passwordHash)).toBe(true);
     });
 
-    // TODO: 프론트 동의 체크박스 추가 후 'false면 BadRequestException'으로 되돌립니다(임시 선택 항목).
-    it('보호자 전달 동의가 없어도 가입하고 동의 여부를 그대로 기록한다(임시)', async () => {
-      await service.signupStudent(
-        studentDto({ loginId: 'noshare01', guardianShareAgreed: undefined }),
-      );
-      await service.signupStudent(
-        studentDto({ loginId: 'noshare02', guardianShareAgreed: false }),
-      );
-      expect(repository.students.map((s) => s.guardianShareAgreed)).toEqual([
-        false,
-        false,
-      ]);
+    it('보호자 전달 동의가 없으면 BadRequestException', async () => {
+      await expect(
+        service.signupStudent(studentDto({ guardianShareAgreed: false })),
+      ).rejects.toThrow(BadRequestException);
+      expect(repository.students).toHaveLength(0);
     });
 
     it('보호자 계정이 쓰는 아이디면 ConflictException', async () => {
@@ -182,25 +175,16 @@ describe('AuthService', () => {
       expect(repository.parents).toHaveLength(0);
     });
 
-    it('이용약관 동의가 없으면 BadRequestException', async () => {
+    it.each([
+      ['이용약관', { termsAgreed: false }],
+      ['자녀 개인정보 수집·이용', { guardianConsentAgreed: false }],
+    ])('%s 동의가 없으면 BadRequestException', async (_label, overrides) => {
       const { studentCode } = await service.signupStudent(studentDto());
 
       await expect(
-        service.signupParent(parentDto(studentCode, { termsAgreed: false })),
+        service.signupParent(parentDto(studentCode, overrides)),
       ).rejects.toThrow(BadRequestException);
       expect(repository.parents).toHaveLength(0);
-    });
-
-    // TODO: 프론트 동의 체크박스 추가 후 'false면 BadRequestException'으로 되돌립니다(임시 선택 항목).
-    it('자녀 개인정보 동의가 없어도 가입·연결하고 동의 여부를 그대로 기록한다(임시)', async () => {
-      const { studentCode } = await service.signupStudent(studentDto());
-
-      await service.signupParent(
-        parentDto(studentCode, { guardianConsentAgreed: undefined }),
-      );
-      expect(repository.links).toEqual([
-        expect.objectContaining({ guardianConsentAgreed: false }),
-      ]);
     });
 
     it('학생 계정이 쓰는 아이디면 ConflictException', async () => {

@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsBoolean, IsNotEmpty, IsString } from 'class-validator';
 import { SignupBaseDto } from './signup-base.dto';
 
 export class SignupParentDto extends SignupBaseDto {
@@ -22,12 +22,10 @@ export class SignupParentDto extends SignupBaseDto {
   @IsBoolean()
   marketingAgreed: boolean;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: true,
-    description:
-      '자녀 개인정보 수집·이용 동의(법정대리인). 원래 필수(false면 400)지만 프론트 체크박스 추가 전까지 임시로 선택(없으면 false로 기록)',
+    description: '자녀 개인정보 수집·이용 동의(법정대리인, 필수)',
   })
-  @IsOptional()
   @IsBoolean()
-  guardianConsentAgreed?: boolean;
+  guardianConsentAgreed: boolean;
 }

@@ -20,12 +20,11 @@ export class SignupStudentDto extends SignupBaseDto {
   @Max(STUDENT_AGE_MAX)
   age?: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: true,
     description:
-      '학습 내용 보호자 전달 동의. 원래 필수(false면 400)지만 프론트 체크박스 추가 전까지 임시로 선택(없으면 false로 기록)',
+      '학습 내용 보호자 전달 동의(필수, 사전 고지). true가 아니면 400',
   })
-  @IsOptional()
   @IsBoolean()
-  guardianShareAgreed?: boolean;
+  guardianShareAgreed: boolean;
 }
