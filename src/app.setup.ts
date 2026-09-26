@@ -1,6 +1,9 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import connectPgSimple from 'connect-pg-simple';
+import express from 'express';
 import session from 'express-session';
+import { LOCAL_FILES_PATH } from './storage/local-storage.service';
+import { storageConfig } from './storage/storage.config';
 
 const PgSessionStore = connectPgSimple(session);
 
@@ -37,6 +40,19 @@ export function configureApp(app: INestApplication): { close: () => void } {
       store,
     }),
   );
+
+  // 로컬 저장소 파일(표지 그림 등) 제공. 키에 무작위 uuid가 들어가 URL을 추측할 수 없습니다(S3는 서명된 URL로 대체).
+  const storage = storageConfig();
+  if (storage.driver === 'local') {
+    app.use(
+      LOCAL_FILES_PATH,
+      express.static(storage.localDir, {
+        index: false,
+        dotfiles: 'deny',
+        setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+      }),
+    );
+  }
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -62,3 +62,6 @@ docs/
 
 # Prisma Client (prisma generate로 생성)
 /src/generated/
+
+# 로컬 파일 저장소(STORAGE_DRIVER=local)
+/storage/

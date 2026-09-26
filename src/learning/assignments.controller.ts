@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,25 +8,37 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Put,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
+  ApiBody,
   ApiConflictResponse,
+  ApiConsumes,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiPayloadTooLargeResponse,
   ApiTags,
   ApiUnauthorizedResponse,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { StudentGuard } from '../auth/guards/role.guards';
+import { DRAWING_MAX_BYTES } from '../common/constants/learning.constants';
+import { BookMakingService } from './book-making.service';
 import {
   ChoiceAttemptDto,
   OrderingAttemptDto,
   SaveReadingPageDto,
+  SaveReflectionDto,
+  SaveTitleDto,
 } from './dto/learning-requests.dto';
 import {
   ChoiceAttemptResponseDto,
@@ -33,7 +46,10 @@ import {
   OrderingResponseDto,
   QuestionDto,
   ReadingResponseDto,
+  SaveDrawingResponseDto,
   SaveReadingPageResponseDto,
+  SaveReflectionResponseDto,
+  SaveTitleResponseDto,
 } from './dto/responses/learning-responses.dto';
 import { AssignmentOwnerGuard } from './guards/assignment-owner.guard';
 import { QuizService } from './quiz.service';
@@ -50,6 +66,7 @@ export class AssignmentsController {
   constructor(
     private readonly readingService: ReadingService,
     private readonly quizService: QuizService,
+    private readonly bookMakingService: BookMakingService,
   ) {}
 
   @ApiOperation({
@@ -144,5 +161,74 @@ export class AssignmentsController {
     @Body() dto: OrderingAttemptDto,
   ): Promise<OrderingAttemptResponseDto> {
     return this.quizService.submitOrdering(id, dto.order, dto.responseTimeMs);
+  }
+
+  @ApiOperation({
+    summary: '제목 짓기',
+    description: '정답·평가 없음. 저장하면 그림 그리기 단계로 넘어갑니다.',
+  })
+  @ApiOkResponse({ type: SaveTitleResponseDto })
+  @ApiBadRequestResponse({ description: '제목이 비었거나 50자 초과' })
+  @ApiConflictResponse({ description: '제목 짓기 단계가 아님' })
+  @Put('title')
+  saveTitle(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SaveTitleDto,
+  ): Promise<SaveTitleResponseDto> {
+    return this.bookMakingService.saveTitle(id, dto.title);
+  }
+
+  @ApiOperation({
+    summary: '표지 그림 업로드',
+    description:
+      'multipart 필드명 image. PNG/WebP만(파일 시그니처로 확인), 최대 2MB. 저장하면 설명 말하기 단계로 넘어갑니다.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['image'],
+      properties: { image: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiCreatedResponse({ type: SaveDrawingResponseDto })
+  @ApiBadRequestResponse({ description: '파일이 없거나 PNG/WebP가 아님' })
+  @ApiPayloadTooLargeResponse({ description: '2MB 초과' })
+  @ApiConflictResponse({ description: '그림 그리기 단계가 아님' })
+  @Post('drawing')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      limits: { fileSize: DRAWING_MAX_BYTES, files: 1 },
+    }),
+  )
+  saveDrawing(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() image: { buffer: Buffer } | undefined,
+  ): Promise<SaveDrawingResponseDto> {
+    if (!image) throw new BadRequestException('image 파일이 필요합니다.');
+    return this.bookMakingService.saveDrawing(id, image.buffer);
+  }
+
+  @ApiOperation({
+    summary: '설명 말하기 저장',
+    description:
+      '브라우저 음성 인식으로 받아 적은 글과 말한 시간만 받습니다(음성은 보내지 않음). 마지막 단계라 저장과 함께 책을 완료하고 스탬프를 적립합니다.',
+  })
+  @ApiCreatedResponse({ type: SaveReflectionResponseDto })
+  @ApiBadRequestResponse({ description: '입력 형식 오류(2,000자·2분 초과 등)' })
+  @ApiUnprocessableEntityResponse({
+    description: '받아 적은 글이 비어 있음(다시 말하기)',
+  })
+  @ApiConflictResponse({ description: '설명 말하기 단계가 아님' })
+  @Post('reflection')
+  saveReflection(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SaveReflectionDto,
+  ): Promise<SaveReflectionResponseDto> {
+    return this.bookMakingService.saveReflection(
+      id,
+      dto.transcript,
+      dto.durationMs,
+    );
   }
 }

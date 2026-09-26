@@ -253,12 +253,13 @@ model Drawing {
   @@map("drawings")
 }
 
+/// 설명 말하기. 브라우저 음성 인식 결과(글)만 받고 음성은 서버에 오지 않습니다. CHECK duration_ms >= 0 — 마이그레이션 SQL에 있음
 model DrawingReflection {
   id         Int      @id @default(autoincrement())
   drawingId  Int      @unique @map("drawing_id")
-  /// 원본 음성 미저장 방침으로 항상 NULL
-  audioUrl   String?  @map("audio_url")
   transcript String
+  /// 말한 시간(ms, 클라이언트 측정). 보호자 대시보드용
+  durationMs Int      @map("duration_ms")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   drawing Drawing @relation(fields: [drawingId], references: [id])

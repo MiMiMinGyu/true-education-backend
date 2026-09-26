@@ -212,3 +212,50 @@ export class OrderingAttemptResponseDto {
   answer?: string[];
   @ApiProperty({ enum: STAGES }) stage: LearningStage;
 }
+
+// ---------- 제목·그림·설명 말하기 ----------
+
+export class StageResultDto {
+  @ApiProperty({
+    enum: STAGES,
+    description: '다음 단계. 마지막 단계를 마치면 COMPLETED',
+  })
+  stage: LearningStage;
+  @ApiPropertyOptional({
+    example: true,
+    description: '책을 완료했을 때만: 서재에 추가되고 스탬프가 적립됨',
+  })
+  completed?: boolean;
+  @ApiPropertyOptional({
+    example: 1,
+    description: '완료했을 때만: 이번에 받은 스탬프 수(1 또는 2)',
+  })
+  stampsEarned?: number;
+  @ApiPropertyOptional({
+    example: 6,
+    description: '완료했을 때만: 누적 스탬프 수',
+  })
+  stampTotal?: number;
+}
+
+export class SaveTitleResponseDto extends StageResultDto {
+  @ApiProperty({ example: '호랑이와 나무꾼' }) title: string;
+}
+
+export class SaveDrawingResponseDto extends StageResultDto {
+  @ApiProperty({
+    example: 'http://localhost:4000/files/drawings/12/3f0c….webp',
+  })
+  imageUrl: string;
+}
+
+export class SaveReflectionResponseDto extends StageResultDto {
+  @ApiProperty({ example: '호랑이가 나무꾼을 형님이라고 불러서 웃겼어요.' })
+  transcript: string;
+}
+
+// ---------- 스탬프 ----------
+
+export class StampTotalResponseDto {
+  @ApiProperty({ example: 6, description: '누적 스탬프 수' }) total: number;
+}

@@ -2,6 +2,7 @@ import request from 'supertest';
 import type TestAgent from 'supertest/lib/agent';
 import { todayKst } from '../common/utils/kst-date.util';
 import { BookContent } from '../content/interfaces/book-content.interface';
+import { ProgressService } from './progress.service';
 import {
   createTestApp,
   loginAsNewStudent,
@@ -15,6 +16,12 @@ const dateColumn = (daysAgo: number) =>
   new Date(
     `${todayKst(new Date(Date.now() - daysAgo * DAY_MS))}T00:00:00.000Z`,
   );
+
+// PNG 시그니처 + 임의 바이트(서버는 형식만 판별하고 이미지를 해석하지 않음)
+const PNG = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.from('cover-image'),
+]);
 
 interface PageLine {
   id: string;
@@ -294,6 +301,176 @@ describe('학습 흐름 (통합)', () => {
     ]);
   });
 
+  /** 읽기·이해 질문·순서 맞추기를 모두 맞혀 제목 짓기 단계로 */
+  async function advanceToTitle(agent: TestAgent, assignmentId: number) {
+    const { body: today } = await agent.get('/sessions/today');
+    const { choices, ordering } = await bookData(today.book.id);
+    await readAllPages(agent, assignmentId);
+    for (const question of choices) {
+      await agent
+        .post(`/assignments/${assignmentId}/questions/${question.id}/attempts`)
+        .send({ answer: question.correctAnswer })
+        .expect(201);
+    }
+    const res = await agent
+      .post(`/assignments/${assignmentId}/ordering/attempts`)
+      .send({ order: ordering.correctAnswer })
+      .expect(201);
+    expect(res.body.stage).toBe('TITLE');
+  }
+
+  async function advanceToReflection(agent: TestAgent, assignmentId: number) {
+    await advanceToTitle(agent, assignmentId);
+    await agent
+      .put(`/assignments/${assignmentId}/title`)
+      .send({ title: '나의 책' })
+      .expect(200);
+    await agent
+      .post(`/assignments/${assignmentId}/drawing`)
+      .attach('image', PNG, 'cover.png')
+      .expect(201);
+  }
+
+  it('제목 짓기 → 표지 그림 → 설명 말하기 → 완료·스탬프 적립 → DONE·스탬프 조회', async () => {
+    const { agent, studentId } = await loginAsNewStudent(ctx.app, 'maker01');
+    const { assignmentId: id } = await startToday(agent);
+
+    // 단계 전에는 거절
+    await agent
+      .put(`/assignments/${id}/title`)
+      .send({ title: '책' })
+      .expect(409);
+    await agent
+      .post(`/assignments/${id}/drawing`)
+      .attach('image', PNG, 'cover.png')
+      .expect(409);
+    await agent
+      .post(`/assignments/${id}/reflection`)
+      .send({ transcript: '안녕', durationMs: 1000 })
+      .expect(409);
+
+    await advanceToTitle(agent, id);
+
+    // 1) 제목 짓기: 앞뒤 공백 제거, 1~50자
+    await agent
+      .put(`/assignments/${id}/title`)
+      .send({ title: '   ' })
+      .expect(400);
+    await agent
+      .put(`/assignments/${id}/title`)
+      .send({ title: '가'.repeat(51) })
+      .expect(400);
+    expect(
+      (
+        await agent
+          .put(`/assignments/${id}/title`)
+          .send({ title: '  호랑이와 나무꾼  ' })
+          .expect(200)
+      ).body,
+    ).toEqual({ title: '호랑이와 나무꾼', stage: 'DRAWING' });
+    await agent
+      .put(`/assignments/${id}/title`)
+      .send({ title: '다시' })
+      .expect(409);
+
+    // 2) 표지 그림: 파일 시그니처로 PNG/WebP만, 2MB 이하
+    await agent.post(`/assignments/${id}/drawing`).expect(400);
+    await agent
+      .post(`/assignments/${id}/drawing`)
+      .attach(
+        'image',
+        Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]),
+        'fake.png',
+      )
+      .expect(400);
+    await agent
+      .post(`/assignments/${id}/drawing`)
+      .attach(
+        'image',
+        Buffer.concat([PNG, Buffer.alloc(2 * 1024 * 1024)]),
+        'big.png',
+      )
+      .expect(413);
+    const drawing = (
+      await agent
+        .post(`/assignments/${id}/drawing`)
+        .attach('image', PNG, 'cover.png')
+        .expect(201)
+    ).body;
+    expect(drawing.stage).toBe('REFLECTION');
+    expect(drawing.imageUrl).toMatch(
+      new RegExp(`/files/drawings/${id}/[0-9a-f-]{36}\\.png$`),
+    );
+    const file = await agent
+      .get(new URL(drawing.imageUrl).pathname)
+      .expect(200);
+    expect(file.headers['content-type']).toBe('image/png');
+    expect(Buffer.compare(file.body as Buffer, PNG)).toBe(0);
+
+    const midway = (await agent.get('/sessions/today').expect(200)).body;
+    expect(midway.steps.map((step: { status: string }) => step.status)).toEqual(
+      ['DONE', 'DONE', 'DONE', 'DONE', 'DONE', 'CURRENT'],
+    );
+
+    // 3) 설명 말하기: 빈 글은 422(단계 유지), 2분 초과는 400, 저장하면 완료 + 스탬프
+    await agent
+      .post(`/assignments/${id}/reflection`)
+      .send({ transcript: '  ', durationMs: 1000 })
+      .expect(422);
+    await agent
+      .post(`/assignments/${id}/reflection`)
+      .send({ transcript: '호랑이', durationMs: 120_001 })
+      .expect(400);
+    const done = (
+      await agent
+        .post(`/assignments/${id}/reflection`)
+        .send({
+          transcript: ' 호랑이가 나무꾼을 형님이라고 불렀어요. ',
+          durationMs: 42000,
+        })
+        .expect(201)
+    ).body;
+    expect(done).toEqual({
+      transcript: '호랑이가 나무꾼을 형님이라고 불렀어요.',
+      stage: 'COMPLETED',
+      completed: true,
+      stampsEarned: expect.any(Number),
+      stampTotal: done.stampsEarned,
+    });
+    expect([1, 2]).toContain(done.stampsEarned);
+    await agent
+      .post(`/assignments/${id}/reflection`)
+      .send({ transcript: '또', durationMs: 1000 })
+      .expect(409);
+
+    const saved = await ctx.prisma.bookAssignment.findUniqueOrThrow({
+      where: { id },
+      include: {
+        progress: true,
+        stamp: true,
+        drawing: { include: { reflection: true } },
+      },
+    });
+    expect(saved).toMatchObject({
+      status: 'COMPLETED',
+      studentTitle: '호랑이와 나무꾼',
+      progress: { currentStage: 'COMPLETED' },
+      stamp: { studentId, amount: done.stampsEarned },
+      drawing: { reflection: { durationMs: 42000 } },
+    });
+    expect(saved.completedAt).toBeInstanceOf(Date);
+
+    // 4) 오솔길은 DONE(보물상자 연출용 스탬프 수), 스탬프 합계 조회
+    expect((await agent.get('/sessions/today').expect(200)).body).toEqual({
+      type: 'DONE',
+      completedBook: { assignmentId: id, title: '호랑이와 나무꾼' },
+      stampsEarned: done.stampsEarned,
+    });
+    expect((await agent.get('/students/me/stamps').expect(200)).body).toEqual({
+      total: done.stampsEarned,
+    });
+  });
+
   it('접근 제어: 비로그인 401, 보호자 403, 다른 학생 403, 없는 배정 404, 단계 전 409', async () => {
     await request(ctx.app.getHttpServer()).get('/sessions/today').expect(401);
 
@@ -318,6 +495,7 @@ describe('학습 흐름 (통합)', () => {
       .send({ role: 'PARENT', loginId: 'parent01', password: 'password123' })
       .expect(200);
     await parent.get('/sessions/today').expect(403);
+    await parent.get('/students/me/stamps').expect(403);
     await parent.get(`/assignments/${assignmentId}/reading`).expect(403);
 
     const other = await loginAsNewStudent(ctx.app, 'other01');
@@ -457,5 +635,33 @@ describe('학습 흐름 (통합)', () => {
       orderBy: { attemptNumber: 'asc' },
     });
     expect(attempts.map((attempt) => attempt.attemptNumber)).toEqual([1, 2]);
+  });
+
+  it('동시 요청: 설명 말하기 3회 → 완료·스탬프 1번만, 2개 당첨이면 합계에 2개', async () => {
+    const { agent, studentId } = await loginAsNewStudent(ctx.app, 'kid04');
+    const { assignmentId } = await startToday(agent);
+    await advanceToReflection(agent, assignmentId);
+
+    const progress = ctx.app.get(ProgressService);
+    progress.random = () => 0; // 2개 당첨
+    try {
+      const results = await Promise.all(
+        Array.from({ length: 3 }, (_, n) =>
+          agent
+            .post(`/assignments/${assignmentId}/reflection`)
+            .send({ transcript: `설명 ${n}`, durationMs: 1000 }),
+        ),
+      );
+      expect(results.map((res) => res.status).sort()).toEqual([201, 409, 409]);
+      const winner = results.find((res) => res.status === 201)!.body;
+      expect(winner).toMatchObject({ stampsEarned: 2, stampTotal: 2 });
+    } finally {
+      progress.random = Math.random;
+    }
+    expect(await ctx.prisma.studentStamp.count({ where: { studentId } })).toBe(
+      1,
+    );
+    expect(await ctx.prisma.drawingReflection.count()).toBe(1);
+    expect((await agent.get('/students/me/stamps')).body).toEqual({ total: 2 });
   });
 });

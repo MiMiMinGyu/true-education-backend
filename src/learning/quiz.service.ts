@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import {
   CHOICE_MAX_ATTEMPTS,
+  LearningStage,
   ORDERING_MAX_ATTEMPTS,
 } from '../common/constants/learning.constants';
 import { todayKst } from '../common/utils/kst-date.util';
@@ -23,9 +24,9 @@ import {
   type ILearningRepository,
   type QuestionData,
 } from './interfaces/learning-repository.interface';
+import { ProgressService } from './progress.service';
 import {
   choiceQuestions,
-  featuresOf,
   loadAssignment,
   orderingQuestion,
 } from './utils/assignment.util';
@@ -35,7 +36,7 @@ import {
   sameSet,
   shuffleUntilDifferent,
 } from './utils/quiz.util';
-import { hasReached, nextStage } from './utils/stage-flow.util';
+import { hasReached } from './utils/stage-flow.util';
 
 interface Card {
   id: string;
@@ -64,6 +65,7 @@ export class QuizService {
   constructor(
     @Inject(LEARNING_REPOSITORY)
     private readonly repository: ILearningRepository,
+    private readonly progress: ProgressService,
   ) {}
 
   // ---------- 이해 질문 ----------
@@ -152,15 +154,12 @@ export class QuizService {
           : progressOf(attemptsFor(allAttempts, item.id), CHOICE_MAX_ATTEMPTS)
               .finished,
       ).length;
-      const allDone = finishedCount === choices.length;
-      const stage = allDone
-        ? nextStage('QUESTION', featuresOf(assignment))
-        : 'QUESTION';
-      await repo.updateProgress(
-        assignmentId,
-        stage,
-        allDone ? 0 : finishedCount,
-      );
+      let stage: LearningStage = 'QUESTION';
+      if (finishedCount === choices.length) {
+        ({ stage } = await this.progress.advance(repo, assignment, 'QUESTION'));
+      } else {
+        await repo.updateProgress(assignmentId, 'QUESTION', finishedCount);
+      }
 
       const response: ChoiceAttemptResponseDto = { correct, finished, stage };
       if (!correct && !finished) {
@@ -241,10 +240,9 @@ export class QuizService {
         responseTimeMs: responseTimeMs ?? null,
       });
       const finished = correct || attemptNumber >= ORDERING_MAX_ATTEMPTS;
-      const stage = finished
-        ? nextStage('ORDERING', featuresOf(assignment))
-        : 'ORDERING';
-      if (finished) await repo.updateProgress(assignmentId, stage, 0);
+      const { stage } = finished
+        ? await this.progress.advance(repo, assignment, 'ORDERING')
+        : { stage: 'ORDERING' as const };
 
       if (correct) return { correct, finished, stage };
       return finished

@@ -18,15 +18,16 @@ import {
   LEARNING_REPOSITORY,
   type ILearningRepository,
 } from './interfaces/learning-repository.interface';
-import { featuresOf, loadAssignment } from './utils/assignment.util';
+import { ProgressService } from './progress.service';
+import { loadAssignment } from './utils/assignment.util';
 import { toPages } from './utils/reading.util';
-import { nextStage } from './utils/stage-flow.util';
 
 @Injectable()
 export class ReadingService {
   constructor(
     @Inject(LEARNING_REPOSITORY)
     private readonly repository: ILearningRepository,
+    private readonly progress: ProgressService,
   ) {}
 
   async getReading(assignmentId: number): Promise<ReadingResponseDto> {
@@ -107,11 +108,15 @@ export class ReadingService {
       if (syllables > 0)
         await repo.addReadingStats(sessionId, syllables, durationMs);
 
-      const isLastPage = page === totalPages;
-      const stage = isLastPage
-        ? nextStage('READING', featuresOf(assignment))
-        : 'READING';
-      await repo.updateProgress(assignmentId, stage, isLastPage ? 0 : page);
+      if (page < totalPages) {
+        await repo.updateProgress(assignmentId, 'READING', page);
+        return { savedPages: page, totalPages, stage: 'READING' };
+      }
+      const { stage } = await this.progress.advance(
+        repo,
+        assignment,
+        'READING',
+      );
       return { savedPages: page, totalPages, stage };
     });
   }

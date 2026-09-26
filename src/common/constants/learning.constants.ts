@@ -51,6 +51,18 @@ export const READING_MAX_MS = 180_000;
 export const CHOICE_MAX_ATTEMPTS = 2;
 export const ORDERING_MAX_ATTEMPTS = 3;
 
+/** 학생이 지은 제목(앞뒤 공백 제거 후). 프론트 입력 제한(30자)보다 넉넉하게 둡니다 */
+export const TITLE_MAX_LENGTH = 50;
+/** 표지 그림 업로드 상한(PNG/WebP) */
+export const DRAWING_MAX_BYTES = 2 * 1024 * 1024;
+/** 설명 말하기 받아 적은 글 최대 길이 */
+export const REFLECTION_MAX_LENGTH = 2_000;
+/** 설명 말하기 시간 상한 = 프론트 녹음 상한(2분) */
+export const REFLECTION_MAX_DURATION_MS = 120_000;
+
+/** 책 완료 시 스탬프는 1개, 이 확률로 2개(보물상자 연출). 판정은 서버가 합니다 */
+export const DOUBLE_STAMP_CHANCE = 0.2;
+
 /** 새 책 고르는 방식: 아직 배정하지 않은 책 중 무작위 / id 순서대로 */
 export type BookSelectionStrategy = 'RANDOM' | 'SEQUENTIAL';
 export const BOOK_SELECTION: BookSelectionStrategy = 'RANDOM';
