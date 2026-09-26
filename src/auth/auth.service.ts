@@ -47,9 +47,7 @@ export class AuthService {
   async signupStudent(
     dto: SignupStudentDto,
   ): Promise<SignupStudentResponseDto> {
-    if (dto.guardianShareAgreed !== true) {
-      throw new BadRequestException('보호자 전달 동의가 필요합니다.');
-    }
+    // TODO: 프론트 동의 체크박스 추가 전까지 임시로 선택 항목(2026-09-26 이민규 결정). 추가되면 false일 때 400으로 되돌립니다.
     const passwordHash = await hash(dto.password, PASSWORD_SALT_ROUNDS);
     const birthYear = dto.age === undefined ? null : currentYearKst() - dto.age;
 
@@ -61,7 +59,7 @@ export class AuthService {
           name: dto.name,
           birthYear,
           studentCode: generateStudentCode(),
-          guardianShareAgreed: true,
+          guardianShareAgreed: dto.guardianShareAgreed ?? false,
         });
         return { id: student.id, studentCode: student.studentCode };
       } catch (error) {
@@ -85,11 +83,7 @@ export class AuthService {
         '이용약관 및 개인정보 처리방침 동의가 필요합니다.',
       );
     }
-    if (dto.guardianConsentAgreed !== true) {
-      throw new BadRequestException(
-        '자녀 개인정보 수집·이용 동의가 필요합니다.',
-      );
-    }
+    // TODO: 프론트 동의 체크박스 추가 전까지 임시로 선택 항목(2026-09-26 이민규 결정). 추가되면 false일 때 400으로 되돌립니다.
     const passwordHash = await hash(dto.password, PASSWORD_SALT_ROUNDS);
 
     try {
@@ -101,7 +95,10 @@ export class AuthService {
           termsAgreed: true,
           marketingAgreed: dto.marketingAgreed,
         },
-        { studentCode: dto.studentCode, guardianConsentAgreed: true },
+        {
+          studentCode: dto.studentCode,
+          guardianConsentAgreed: dto.guardianConsentAgreed ?? false,
+        },
       );
       return { id: parent.id };
     } catch (error) {
