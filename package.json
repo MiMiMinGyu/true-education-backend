@@ -20,9 +20,12 @@
     "postinstall": "prisma generate",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
+    "setup:local": "npm run db:up && prisma migrate deploy && npm run demo:seed",
+    "db:reset": "docker compose down -v && npm run setup:local",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "content:seed": "nest build && node dist/scripts/seed-content.js",
+    "demo:seed": "nest build && node dist/scripts/demo-seed.js",
     "tts:warmup": "nest build && node dist/scripts/tts-warmup.js",
     "test:int": "node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --config jest.integration.config.ts"
   },

@@ -1,111 +1,90 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 여울(Yeoul) 백엔드
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+경계선 지능 초등 저학년 학생을 위한 독서 학습 서비스 **여울**의 백엔드입니다.
+NestJS 11 · Prisma 7 · PostgreSQL 16 · 세션(쿠키) 로그인.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+API 문서(Swagger): 서버 실행 후 <http://localhost:4000/api-docs>
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 1. 로컬에서 실행하기
 
-## Project setup
+### 준비물
+- **Node.js 20**(`.nvmrc`), npm
+- **Docker**(DB를 컨테이너로 띄웁니다)
 
+### 처음 한 번
 ```bash
-$ npm install
+cp .env.example .env        # 기본값 그대로 로컬에서 동작합니다
+npm ci
+npm run setup:local         # DB 실행 → 테이블 생성 → 개발용 동화·시연 데이터 적재
 ```
 
-## Compile and run the project
-
+### 매번
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run db:up               # DB 컨테이너가 꺼져 있으면
+npm run start:dev           # http://localhost:4000
 ```
 
-## Run tests
+프론트(Next.js)는 `http://localhost:3000`에서 실행하면 됩니다. 백엔드는 이 주소의 요청과 쿠키를 허용해 두었습니다(`.env`의 `CORS_ORIGIN`).
 
+### 시연 계정(`npm run setup:local` 또는 `npm run demo:seed` 후)
+| 역할 | 아이디 | 비밀번호 | 들어 있는 것 |
+|---|---|---|---|
+| 학생 | `demo_kid` | `yeoul1234` | 지난 5일간 완료한 책 5권(서재·표지·설명 말하기), 스탬프 7개. 오늘은 로그인하면 새 책이 배정됨 |
+| 보호자 | `demo_parent` | `yeoul1234` | `demo_kid`와 연결, 보상 2개(5개 달성, 10개 대기), 대시보드 판정 결과 |
+
+`npm run demo:seed`를 다시 실행하면 시연 계정의 기록만 지우고 처음 상태로 되돌립니다(다른 계정은 그대로).
+
+### 처음부터 다시(로컬 DB 완전 초기화)
 ```bash
-# unit tests
-$ npm run test
-
-# test coverage
-$ npm run test:cov
+npm run db:reset            # DB 컨테이너와 데이터를 지우고 setup:local을 다시 실행
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## 2. 프론트 연동 시 알아 둘 것
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+- **모든 요청에 `credentials: "include"`** 가 필요합니다(로그인 = httpOnly 세션 쿠키).
+- 역할 값은 `STUDENT` / `PARENT`. 로그인 요청에 `role`이 필요합니다.
+- **정답·힌트는 채점 전에 내려가지 않습니다.** 채점은 제출 응답으로만 합니다.
+- **단계 전환은 서버만** 합니다. 현재 단계와 맞지 않는 요청은 `409`입니다(예: 순서 맞추기를 끝내기 전에 제목 저장).
+- 학습 흐름: `GET /sessions/today`로 오늘의 배정(`assignmentId`)과 단계를 받고, 단계별 API를 호출합니다.
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+| 단계 | API | 규칙 |
+|---|---|---|
+| 번갈아 읽기 | `GET /assignments/{id}/reading`, `POST …/reading/pages/{page}` | 쪽마다 저장, `savedPages + 1`쪽부터 이어 읽기, 학생 줄별 읽은 시간(`durationMs`) |
+| 이해 질문 | `GET …/questions`, `POST …/questions/{questionId}/attempts` | 최대 2회. 1차 오답 → `hint`, 2차 오답 → `answer`(정답 공개) |
+| 순서 맞추기 | `GET …/ordering`, `POST …/ordering/attempts` | 카드는 서버가 섞어 보냄, 카드 id 배열로 제출, 최대 3회 |
+| 제목 짓기 | `PUT …/title` `{ title }` | 앞뒤 공백 제거 1~50자 |
+| 표지 그림 | `POST …/drawing` (multipart, 필드명 **`image`**) | PNG/WebP, 2MB 이하 |
+| 설명 말하기 | `POST …/reflection` `{ transcript, durationMs }` | 브라우저 음성 인식 결과만(음성은 보내지 않음), 2분 이하, 빈 글은 `422`. **저장하면 책 완료 + 스탬프 적립**(응답 `stampsEarned`: 1 또는 2) |
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+- 책을 완료한 날에는 `GET /sessions/today`가 `{ type: "DONE", stampsEarned }`를 돌려줍니다(하루 1권). 보물상자 연출에 이 값을 씁니다.
+- 서재 `GET /bookshelf`(최근 완료 순), 스탬프 `GET /students/me/stamps`, 보상 `GET /students/me/rewards`
+- 보호자: `GET /parents/me/students`, `GET /parents/me/students/{studentId}/dashboard`, 보상 `GET·PUT·DELETE /parents/me/students/{studentId}/rewards[/{milestone}]`
+- 여울이 음성 `GET /books/{bookId}/lines/{lineId}/tts`: Typecast 키가 없으면 항상 `503`입니다. 음성 없이(또는 브라우저 TTS로) 진행하면 됩니다.
+- 업로드한 그림 등 파일은 백엔드의 `/files/…` 주소로 제공됩니다(응답에 절대 URL로 들어 있음).
 
-## Observability
+---
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+## 3. 명령어
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+| 명령 | 설명 |
+|---|---|
+| `npm run setup:local` | DB 실행 → 마이그레이션 → 개발용 동화·시연 데이터 적재 |
+| `npm run db:reset` | 로컬 DB 컨테이너와 데이터를 지우고 `setup:local` 다시 실행 |
+| `npm run demo:seed` | 시연 계정과 기록을 처음 상태로 |
+| `npm run content:seed` | `prisma/seed/books`의 개발용 동화만 적재 |
+| `npm run tts:warmup -- --book <external_id\|all>` | 여울이 음성 미리 만들기(Typecast 키 필요) |
+| `npm run start:dev` | 개발 서버(파일 변경 시 재시작) |
+| `npm test` / `npm run test:int` | 단위 테스트 / 통합 테스트(실제 DB, 테스트 전용 DB를 자동 생성) |
+| `npm run lint` / `npm run build` | 린트 / 빌드 |
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+---
 
-## Resources
+## 4. 문제 해결
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **DB 연결 실패**: `npm run db:up`으로 컨테이너를 켜세요. 호스트 포트는 다른 PostgreSQL과 겹치지 않게 **5433**입니다(`.env`의 `POSTGRES_PORT`).
+- **로그인했는데 다음 요청이 401**: 프론트 요청에 `credentials: "include"`가 빠졌거나, 프론트 주소가 `CORS_ORIGIN`과 다릅니다.
+- **`Unknown argument` 오류**(스키마를 바꾼 뒤): `npx prisma generate`로 Prisma 클라이언트를 다시 만드세요.
