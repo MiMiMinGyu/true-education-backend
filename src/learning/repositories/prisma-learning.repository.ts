@@ -241,6 +241,68 @@ class PrismaLearningStore implements ILearningRepository {
       },
     });
   }
+
+  async saveTitle(assignmentId: number, title: string): Promise<void> {
+    await this.db.bookAssignment.update({
+      where: { id: assignmentId },
+      data: { studentTitle: title },
+    });
+  }
+
+  async upsertDrawing(assignmentId: number, imageKey: string): Promise<void> {
+    await this.db.drawing.upsert({
+      where: { bookAssignmentId: assignmentId },
+      create: { bookAssignmentId: assignmentId, imageUrl: imageKey },
+      update: { imageUrl: imageKey },
+    });
+  }
+
+  async findDrawingId(assignmentId: number): Promise<number | null> {
+    const drawing = await this.db.drawing.findUnique({
+      where: { bookAssignmentId: assignmentId },
+      select: { id: true },
+    });
+    return drawing?.id ?? null;
+  }
+
+  async createReflection(
+    drawingId: number,
+    transcript: string,
+    durationMs: number,
+  ): Promise<void> {
+    await this.db.drawingReflection.create({
+      data: { drawingId, transcript, durationMs },
+    });
+  }
+
+  async completeAssignment(assignmentId: number): Promise<void> {
+    await this.db.bookAssignment.update({
+      where: { id: assignmentId },
+      data: {
+        status: 'COMPLETED',
+        completedAt: new Date(),
+        progress: { update: { currentStage: 'COMPLETED', currentStep: 0 } },
+      },
+    });
+  }
+
+  async createStamp(
+    studentId: number,
+    assignmentId: number,
+    amount: number,
+  ): Promise<void> {
+    await this.db.studentStamp.create({
+      data: { studentId, bookAssignmentId: assignmentId, amount },
+    });
+  }
+
+  async sumStamps(studentId: number): Promise<number> {
+    const result = await this.db.studentStamp.aggregate({
+      where: { studentId },
+      _sum: { amount: true },
+    });
+    return result._sum.amount ?? 0;
+  }
 }
 
 @Injectable()

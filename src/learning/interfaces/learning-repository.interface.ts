@@ -109,4 +109,24 @@ export interface ILearningRepository {
 
   listAttempts(assignmentId: number): Promise<AttemptRecord[]>;
   createAttempt(attempt: NewAttempt): Promise<void>;
+
+  saveTitle(assignmentId: number, title: string): Promise<void>;
+  /** 배정당 1장. 다시 저장하면 교체합니다 */
+  upsertDrawing(assignmentId: number, imageKey: string): Promise<void>;
+  findDrawingId(assignmentId: number): Promise<number | null>;
+  createReflection(
+    drawingId: number,
+    transcript: string,
+    durationMs: number,
+  ): Promise<void>;
+
+  /** 배정 COMPLETED(completed_at = now) + 진행 상태 COMPLETED */
+  completeAssignment(assignmentId: number): Promise<void>;
+  /** 배정당 1번(UNIQUE). 이미 있으면 유일 제약 오류 */
+  createStamp(
+    studentId: number,
+    assignmentId: number,
+    amount: number,
+  ): Promise<void>;
+  sumStamps(studentId: number): Promise<number>;
 }
