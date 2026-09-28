@@ -47,12 +47,25 @@ export const CONSENT_ITEMS: Record<ConsentRole, readonly ConsentItem[]> = {
 export const consentKeys = (role: ConsentRole) =>
   CONSENT_ITEMS[role].map((item) => item.key);
 
-/** 동의한 항목 중 빠진 필수 항목 */
+/**
+ * 동의한 항목 중 빠진 필수 항목.
+ * aboutChild를 주면 그 범위만 봅니다: false = 보호자 계정 동의(가입), true = 자녀 관련 동의(연결 요청).
+ */
 export function missingRequiredConsents(
   role: ConsentRole,
   agreed: readonly string[],
+  aboutChild?: boolean,
 ): string[] {
   return CONSENT_ITEMS[role]
+    .filter(
+      (item) =>
+        aboutChild === undefined || (item.aboutChild ?? false) === aboutChild,
+    )
     .filter((item) => item.required && !agreed.includes(item.key))
     .map((item) => item.key);
 }
+
+/** 보호자가 자녀를 연결할 때(연결 요청마다) 받는 동의 항목 */
+export const CHILD_CONSENT_KEYS = CONSENT_ITEMS.PARENT.filter(
+  (item) => item.aboutChild,
+).map((item) => item.key);

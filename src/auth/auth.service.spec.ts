@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { compare } from 'bcryptjs';
+import { MAX_PENDING_LINK_REQUESTS } from '../common/constants/link.constants';
 import { StudentCodeTakenError } from '../users/errors/user-repository.errors';
 import { USER_REPOSITORY } from '../users/interfaces/user-repository.interface';
 import { InMemoryUserRepository } from '../users/repositories/in-memory-user.repository';
@@ -164,7 +165,24 @@ describe('AuthService', () => {
   });
 
   describe('signupParent', () => {
-    it('학생 코드가 일치하면 보호자를 만들고 동의 기록과 함께 학생과 연결한다', async () => {
+    it('학생 코드 없이 계정 동의만으로 가입하고, 연결은 만들지 않는다', async () => {
+      const parent = await service.signupParent({
+        ...parentDto(''),
+        studentCode: undefined,
+        agreements: ['terms', 'guardianPrivacy', 'childPrivacy'],
+      });
+
+      expect(repository.links).toEqual([]);
+      // 대상 아이가 없으니 자녀 관련 동의는 기록하지 않는다
+      expect(
+        repository.consents.map((c) => [c.key, c.parentId, c.studentId]),
+      ).toEqual([
+        ['terms', parent.id, null],
+        ['guardianPrivacy', parent.id, null],
+      ]);
+    });
+
+    it('(전환용) 학생 코드를 보내면 연결이 아니라 수락 대기 요청을 만든다', async () => {
       const student = await service.signupStudent(studentDto());
 
       const parent = await service.signupParent(parentDto(student.studentCode));
@@ -174,8 +192,24 @@ describe('AuthService', () => {
           parentId: parent.id,
           studentId: student.id,
           guardianConsentAgreed: true,
+          status: 'PENDING',
         },
       ]);
+    });
+
+    it('(전환용) 학생의 대기 요청이 가득 차면 ConflictException', async () => {
+      const student = await service.signupStudent(studentDto());
+      for (let n = 1; n <= MAX_PENDING_LINK_REQUESTS; n++) {
+        await service.signupParent(
+          parentDto(student.studentCode, { loginId: `parent0${n}` }),
+        );
+      }
+
+      await expect(
+        service.signupParent(
+          parentDto(student.studentCode, { loginId: 'parentxx' }),
+        ),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('학생 코드는 대소문자를 구분한다', async () => {
@@ -203,17 +237,20 @@ describe('AuthService', () => {
       'childPrivacy',
       'childSpeech',
       'guardianDashboard',
-    ])('필수 항목 %s가 빠지면 BadRequestException', async (missing) => {
-      const { studentCode } = await service.signupStudent(studentDto());
-      const agreements = parentDto(studentCode).agreements.filter(
-        (key) => key !== missing,
-      );
+    ])(
+      '(코드를 보낼 때) 필수 항목 %s가 빠지면 BadRequestException',
+      async (missing) => {
+        const { studentCode } = await service.signupStudent(studentDto());
+        const agreements = parentDto(studentCode).agreements.filter(
+          (key) => key !== missing,
+        );
 
-      await expect(
-        service.signupParent(parentDto(studentCode, { agreements })),
-      ).rejects.toThrow(BadRequestException);
-      expect(repository.parents).toHaveLength(0);
-    });
+        await expect(
+          service.signupParent(parentDto(studentCode, { agreements })),
+        ).rejects.toThrow(BadRequestException);
+        expect(repository.parents).toHaveLength(0);
+      },
+    );
 
     it('자녀 관련 동의에는 대상 자녀를 남기고, 마케팅은 선택이다', async () => {
       const student = await service.signupStudent(studentDto());
@@ -230,10 +267,10 @@ describe('AuthService', () => {
       ).toEqual([
         ['terms', parent.id, null],
         ['guardianPrivacy', parent.id, null],
+        ['marketing', parent.id, null],
         ['childPrivacy', parent.id, student.id],
         ['childSpeech', parent.id, student.id],
         ['guardianDashboard', parent.id, student.id],
-        ['marketing', parent.id, null],
       ]);
       expect(repository.parents[0]).toMatchObject({
         termsAgreed: true,

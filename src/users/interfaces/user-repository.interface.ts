@@ -26,11 +26,9 @@ export interface IUserRepository {
   createStudent(student: NewStudent): Promise<StudentAccount>;
 
   /**
-   * 아이디 중복 확인, 학생 코드 조회, 보호자 생성, 학생 연결을 한 트랜잭션으로 처리합니다.
-   * @throws LoginIdTakenError, StudentCodeNotFoundError
+   * 아이디 중복 확인과 보호자 생성을 한 트랜잭션으로 처리합니다.
+   * link가 있으면 같은 트랜잭션에서 그 학생에게 연결 요청(PENDING)을 만들고, 자녀 관련 동의는 그 학생 대상으로 기록합니다.
+   * @throws LoginIdTakenError, StudentCodeNotFoundError, LinkRequestLimitError
    */
-  createParentWithStudentLink(
-    parent: NewParent,
-    link: NewParentLink,
-  ): Promise<ParentAccount>;
+  createParent(parent: NewParent, link?: NewParentLink): Promise<ParentAccount>;
 }

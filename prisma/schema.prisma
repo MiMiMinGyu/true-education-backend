@@ -52,12 +52,23 @@ model Parent {
   @@map("parents")
 }
 
+/// 보호자 연결 요청 상태: 보호자가 학생 코드로 요청 → 학생이 수락해야 연결 성립
+enum LinkStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+/// 보호자-학생 연결(요청 포함). 보호자 API는 ACCEPTED만 연결된 자녀로 봅니다.
 model ParentStudent {
-  parentId              Int      @map("parent_id")
-  studentId             Int      @map("student_id")
-  /// 자녀 개인정보 수집·이용 동의(법정대리인). 동의 시각 = createdAt
-  guardianConsentAgreed Boolean  @default(false) @map("guardian_consent_agreed")
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  parentId              Int        @map("parent_id")
+  studentId             Int        @map("student_id")
+  /// 자녀 개인정보 수집·이용 동의(법정대리인). 동의 시각 = createdAt(요청 시각, 다시 요청하면 갱신)
+  guardianConsentAgreed Boolean    @default(false) @map("guardian_consent_agreed")
+  status                LinkStatus @default(PENDING)
+  /// 학생이 수락·거절한 시각
+  respondedAt           DateTime?  @map("responded_at") @db.Timestamptz(6)
+  createdAt             DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
 
   parent  Parent  @relation(fields: [parentId], references: [id])
   student Student @relation(fields: [studentId], references: [id])

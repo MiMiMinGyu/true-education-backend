@@ -70,12 +70,18 @@ export class AuthController {
   @ApiOperation({
     summary: '보호자 회원가입',
     description:
-      '학생 코드가 유효하면 가입과 학생 연결을 한 트랜잭션으로 처리합니다.',
+      '보호자 계정만 만듭니다. 자녀는 가입 후 POST /parents/me/link-requests로 연결 요청하고, 학생이 수락하면 연결됩니다. ' +
+      '(전환용) studentCode를 함께 보내면 가입과 같은 트랜잭션에서 연결 요청을 만듭니다.',
   })
   @ApiCreatedResponse({ type: SignupParentResponseDto })
   @ApiBadRequestResponse({ description: '입력 검증 실패, 필수 동의 누락' })
-  @ApiConflictResponse({ description: '이미 사용 중인 아이디' })
-  @ApiNotFoundResponse({ description: '일치하는 학생 코드 없음' })
+  @ApiConflictResponse({
+    description:
+      '이미 사용 중인 아이디, (studentCode를 보낸 경우) 그 학생의 대기 요청이 너무 많음',
+  })
+  @ApiNotFoundResponse({
+    description: '(studentCode를 보낸 경우) 일치하는 학생 코드 없음',
+  })
   @Post('signup/parent')
   signupParent(@Body() dto: SignupParentDto): Promise<SignupParentResponseDto> {
     return this.authService.signupParent(dto);

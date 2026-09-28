@@ -19,7 +19,7 @@ export class PrismaParentRepository implements IParentRepository {
 
   async listStudents(parentId: number): Promise<LinkedStudent[]> {
     const links = await this.prisma.parentStudent.findMany({
-      where: { parentId },
+      where: { parentId, status: 'ACCEPTED' },
       orderBy: { createdAt: 'asc' },
       select: { student: { select: { id: true, name: true } } },
     });
@@ -32,9 +32,9 @@ export class PrismaParentRepository implements IParentRepository {
   async isLinked(parentId: number, studentId: number): Promise<boolean> {
     const link = await this.prisma.parentStudent.findUnique({
       where: { parentId_studentId: { parentId, studentId } },
-      select: { parentId: true },
+      select: { status: true },
     });
-    return link !== null;
+    return link?.status === 'ACCEPTED';
   }
 
   async getDashboardSource(

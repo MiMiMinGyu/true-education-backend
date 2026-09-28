@@ -17,3 +17,9 @@ export class StudentCodeNotFoundError extends Error {
     super('student code not found');
   }
 }
+
+export class LinkRequestLimitError extends Error {
+  constructor() {
+    super('too many pending link requests for the student');
+  }
+}

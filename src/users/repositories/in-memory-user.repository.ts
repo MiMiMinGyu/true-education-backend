@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { MAX_PENDING_LINK_REQUESTS } from '../../common/constants/link.constants';
 import {
+  LinkRequestLimitError,
   LoginIdTakenError,
   StudentCodeNotFoundError,
   StudentCodeTakenError,
@@ -18,6 +20,7 @@ interface ParentStudentLink {
   parentId: number;
   studentId: number;
   guardianConsentAgreed: boolean;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
 }
 
 /** 단위 테스트용 구현체. PrismaUserRepository와 같은 규칙(두 테이블 아이디 중복, 도메인 오류)을 따릅니다. */
@@ -80,18 +83,28 @@ export class InMemoryUserRepository implements IUserRepository {
     return saved;
   }
 
-  async createParentWithStudentLink(
+  async createParent(
     parent: NewParent,
-    link: NewParentLink,
+    link?: NewParentLink,
   ): Promise<ParentAccount> {
     if (await this.isLoginIdTaken(parent.loginId)) {
       throw new LoginIdTakenError(parent.loginId);
     }
-    const student = this.students.find(
-      (s) => s.studentCode === link.studentCode,
-    );
-    if (!student) {
-      throw new StudentCodeNotFoundError();
+    let studentId: number | null = null;
+    if (link) {
+      const student = this.students.find(
+        (s) => s.studentCode === link.studentCode,
+      );
+      if (!student) {
+        throw new StudentCodeNotFoundError();
+      }
+      const pending = this.links.filter(
+        (l) => l.studentId === student.id && l.status === 'PENDING',
+      ).length;
+      if (pending >= MAX_PENDING_LINK_REQUESTS) {
+        throw new LinkRequestLimitError();
+      }
+      studentId = student.id;
     }
     const { consents, ...data } = parent;
     const saved = { id: this.nextId++, ...data };
@@ -101,14 +114,17 @@ export class InMemoryUserRepository implements IUserRepository {
         ...consent,
         subjectType: 'PARENT',
         parentId: saved.id,
-        studentId: consent.aboutChild ? student.id : null,
+        studentId: consent.aboutChild ? studentId : null,
       });
     }
-    this.links.push({
-      parentId: saved.id,
-      studentId: student.id,
-      guardianConsentAgreed: link.guardianConsentAgreed,
-    });
+    if (studentId !== null) {
+      this.links.push({
+        parentId: saved.id,
+        studentId,
+        guardianConsentAgreed: true,
+        status: 'PENDING',
+      });
+    }
     return saved;
   }
 }

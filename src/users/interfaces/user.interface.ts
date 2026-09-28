@@ -21,7 +21,7 @@ export interface ParentAccount {
 export interface NewConsent {
   key: string;
   version: string;
-  /** 보호자 동의 중 연결한 자녀에 대한 항목 */
+  /** 보호자 동의 중 연결 요청한 자녀에 대한 항목 */
   aboutChild: boolean;
 }
 
@@ -44,7 +44,7 @@ export interface NewParent {
   consents: NewConsent[];
 }
 
+/** 가입과 함께 보내는 연결 요청(전환용). 학생이 수락해야 연결됩니다. */
 export interface NewParentLink {
   studentCode: string;
-  guardianConsentAgreed: boolean;
 }
