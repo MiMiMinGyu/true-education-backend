@@ -4,6 +4,7 @@ import {
   STAGE_LABELS,
 } from '../common/constants/learning.constants';
 import { todayKst } from '../common/utils/kst-date.util';
+import { ContentStockService } from '../content-inbox/content-stock.service';
 import { BookSelector } from './book-selector';
 import { TodayResponseDto } from './dto/responses/learning-responses.dto';
 import {
@@ -24,6 +25,7 @@ export class SessionsService {
     @Inject(LEARNING_REPOSITORY)
     private readonly repository: ILearningRepository,
     private readonly bookSelector: BookSelector,
+    private readonly stock: ContentStockService,
   ) {}
 
   /**
@@ -53,7 +55,10 @@ export class SessionsService {
           };
         }
         const bookId = await this.bookSelector.pick(studentId);
-        if (bookId === null) return { type: 'NO_BOOK' };
+        if (bookId === null) {
+          this.stock.observe(studentId);
+          return { type: 'NO_BOOK' };
+        }
 
         assignmentId = await this.repository.createAssignment(
           studentId,
@@ -63,6 +68,8 @@ export class SessionsService {
         );
         // 같은 학생의 다른 요청이 먼저 배정했다 → 처음부터 다시 조회
         if (assignmentId === null) continue;
+        // 새 책을 배정할 때마다 남은 책을 확인해 부족하면 AI 파트에 알립니다(응답은 기다리지 않음).
+        this.stock.observe(studentId);
       }
 
       await this.repository.touchSession(assignmentId, today);

@@ -18,6 +18,15 @@ async function bootstrap() {
       name: 'connect.sid',
       description: '로그인 성공 시 발급되는 세션 쿠키 (httpOnly)',
     })
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: 'X-API-Key',
+        description: 'AI 파트 동화 전송용 키(CONTENT_API_KEY)',
+      },
+      'contentApiKey',
+    )
     .build();
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api-docs', app, swaggerDocument);

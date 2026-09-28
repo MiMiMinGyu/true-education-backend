@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ContentInboxModule } from '../content-inbox/content-inbox.module';
 import { AssignmentsController } from './assignments.controller';
 import { BookMakingService } from './book-making.service';
 import { BookSelector } from './book-selector';
@@ -13,6 +14,7 @@ import { SessionsService } from './sessions.service';
 import { StampsController } from './stamps.controller';
 
 @Module({
+  imports: [ContentInboxModule],
   controllers: [SessionsController, AssignmentsController, StampsController],
   providers: [
     { provide: LEARNING_REPOSITORY, useClass: PrismaLearningRepository },
