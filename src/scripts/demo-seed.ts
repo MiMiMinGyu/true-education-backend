@@ -252,7 +252,12 @@ async function main() {
             termsAgreed: true,
             marketingAgreed: false,
             students: {
-              create: { studentId: student.id, guardianConsentAgreed: true },
+              create: {
+                studentId: student.id,
+                guardianConsentAgreed: true,
+                status: 'ACCEPTED',
+                respondedAt: new Date(),
+              },
             },
           },
         });

@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { MAX_PENDING_LINK_REQUESTS } from '../../common/constants/link.constants';
 import {
+  LinkRequestLimitError,
   LoginIdTakenError,
   StudentCodeNotFoundError,
   StudentCodeTakenError,
@@ -94,32 +96,42 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
-  createParentWithStudentLink(
+  createParent(
     parent: NewParent,
-    link: NewParentLink,
+    link?: NewParentLink,
   ): Promise<ParentAccount> {
     return this.prisma.$transaction(async (tx) => {
       await lockLoginId(tx, parent.loginId);
       if (await isLoginIdTakenIn(tx, parent.loginId)) {
         throw new LoginIdTakenError(parent.loginId);
       }
-      const student = await tx.student.findUnique({
-        where: { studentCode: link.studentCode },
-        select: { id: true },
-      });
-      if (!student) {
-        throw new StudentCodeNotFoundError();
+      let studentId: number | null = null;
+      if (link) {
+        const student = await tx.student.findUnique({
+          where: { studentCode: link.studentCode },
+          select: { id: true },
+        });
+        if (!student) {
+          throw new StudentCodeNotFoundError();
+        }
+        studentId = student.id;
+        await lockStudentLinks(tx, studentId);
+        const pending = await tx.parentStudent.count({
+          where: { studentId, status: 'PENDING' },
+        });
+        if (pending >= MAX_PENDING_LINK_REQUESTS) {
+          throw new LinkRequestLimitError();
+        }
       }
       const { consents, ...data } = parent;
       const created = await tx.parent.create({
         data: {
           ...data,
-          students: {
-            create: {
-              studentId: student.id,
-              guardianConsentAgreed: link.guardianConsentAgreed,
+          ...(studentId !== null && {
+            students: {
+              create: { studentId, guardianConsentAgreed: true },
             },
-          },
+          }),
         },
         select: PARENT_SELECT,
       });
@@ -127,7 +139,7 @@ export class PrismaUserRepository implements IUserRepository {
         data: consents.map((consent) => ({
           subjectType: 'PARENT' as const,
           parentId: created.id,
-          studentId: consent.aboutChild ? student.id : null,
+          studentId: consent.aboutChild ? studentId : null,
           consentKey: consent.key,
           version: consent.version,
         })),
@@ -151,4 +163,12 @@ async function isLoginIdTakenIn(db: Db, loginId: string): Promise<boolean> {
 // 같은 아이디로 동시에 가입하는 요청을 트랜잭션 단위로 직렬화합니다(트랜잭션 종료 시 자동 해제).
 async function lockLoginId(tx: Prisma.TransactionClient, loginId: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${loginId}))`;
+}
+
+/** 한 학생에게 들어오는 연결 요청을 직렬화합니다(대기 요청 수 제한을 동시 요청에도 지키기 위함) */
+export async function lockStudentLinks(
+  tx: Prisma.TransactionClient,
+  studentId: number,
+) {
+  await tx.$executeRaw`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`;
 }

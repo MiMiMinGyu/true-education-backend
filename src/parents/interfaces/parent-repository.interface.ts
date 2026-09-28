@@ -51,7 +51,9 @@ export interface StudentOverview {
 }
 
 export interface IParentRepository {
+  /** 연결이 성립한(학생이 수락한) 자녀만 */
   listStudents(parentId: number): Promise<LinkedStudent[]>;
+  /** 학생이 수락한 연결이면 true(대기·거절은 false) */
   isLinked(parentId: number, studentId: number): Promise<boolean>;
   getDashboardSource(
     studentId: number,

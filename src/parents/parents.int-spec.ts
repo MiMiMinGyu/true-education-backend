@@ -8,6 +8,7 @@ import { ImportBook } from '../content/interfaces/import-book.interface';
 import { PrismaContentRepository } from '../content/repositories/prisma-content.repository';
 import {
   createTestApp,
+  loginAsLinkedParent,
   loginAsNewStudent,
   resetDatabase,
   seedDevBooks,
@@ -48,31 +49,6 @@ describe('보호자 대시보드·보상 (통합)', () => {
   afterAll(async () => {
     await ctx.close();
   });
-
-  async function loginAsLinkedParent(studentCode: string, loginId: string) {
-    const agent = request.agent(ctx.app.getHttpServer());
-    await agent
-      .post('/auth/signup/parent')
-      .send({
-        name: '보호자',
-        loginId,
-        password: 'password123',
-        studentCode,
-        agreements: [
-          'terms',
-          'guardianPrivacy',
-          'childPrivacy',
-          'childSpeech',
-          'guardianDashboard',
-        ],
-      })
-      .expect(201);
-    await agent
-      .post('/auth/login')
-      .send({ role: 'PARENT', loginId, password: 'password123' })
-      .expect(200);
-    return agent;
-  }
 
   /**
    * 오늘의 책을 끝까지 풀고, 다음 책을 받을 수 있게 daysAgo일 전에 한 것으로 옮깁니다.
@@ -188,7 +164,7 @@ describe('보호자 대시보드·보상 (통합)', () => {
 
   it('대시보드 v3: 기록 요건 전에는 기록 부족, 5권 완료 후 영역별 판정·문구·묶음, 기간 밖 책은 제외', async () => {
     const kid = await loginAsNewStudent(ctx.app, 'kid10');
-    const parent = await loginAsLinkedParent(kid.studentCode, 'parent10');
+    const parent = await loginAsLinkedParent(ctx.app, kid, 'parent10');
 
     // 가입 동의가 항목별로 기록된다(학생 3개, 보호자 필수 5개 중 자녀 관련 3개는 대상 자녀 포함)
     const consents = await ctx.prisma.userConsent.findMany({
@@ -344,7 +320,7 @@ describe('보호자 대시보드·보상 (통합)', () => {
 
   it('보호자 화면(/dashboard): 프론트 형태로 유형별 결과를 AI 파트 기준으로 판정, 설명 말하기에 표지 그림', async () => {
     const kid = await loginAsNewStudent(ctx.app, 'kid14');
-    const parent = await loginAsLinkedParent(kid.studentCode, 'parent14');
+    const parent = await loginAsLinkedParent(ctx.app, kid, 'parent14');
 
     const empty = await screenOf(parent, kid.studentId);
     expect(empty).toMatchObject({
@@ -422,7 +398,7 @@ describe('보호자 대시보드·보상 (통합)', () => {
 
   it('보상: 5의 배수 목표치만, 선물한 뒤에는 고치거나 지울 수 없고, 학생은 같은 보상판을 읽기만', async () => {
     const kid = await loginAsNewStudent(ctx.app, 'kid11');
-    const parent = await loginAsLinkedParent(kid.studentCode, 'parent11');
+    const parent = await loginAsLinkedParent(ctx.app, kid, 'parent11');
     const base = `/parents/me/students/${kid.studentId}/rewards`;
 
     expect((await parent.get(base).expect(200)).body).toEqual({
@@ -507,7 +483,7 @@ describe('보호자 대시보드·보상 (통합)', () => {
       .expect(401);
     const kid = await loginAsNewStudent(ctx.app, 'kid12');
     const other = await loginAsNewStudent(ctx.app, 'kid13');
-    const parent = await loginAsLinkedParent(kid.studentCode, 'parent12');
+    const parent = await loginAsLinkedParent(ctx.app, kid, 'parent12');
 
     await kid.agent.get('/parents/me/students').expect(403);
     await kid.agent

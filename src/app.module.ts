@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { BookshelfModule } from './bookshelf/bookshelf.module';
 import { LearningModule } from './learning/learning.module';
+import { LinksModule } from './links/links.module';
 import { ParentsModule } from './parents/parents.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RewardsModule } from './rewards/rewards.module';
@@ -23,6 +24,7 @@ import { UsersModule } from './users/users.module';
     BookshelfModule,
     RewardsModule,
     ParentsModule,
+    LinksModule,
     TtsModule,
   ],
   controllers: [AppController],

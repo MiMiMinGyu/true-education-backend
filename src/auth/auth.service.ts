@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -11,13 +10,11 @@ import {
   LOGIN_FAILED_MESSAGE,
   PASSWORD_SALT_ROUNDS,
 } from '../common/constants/auth.constants';
-import {
-  CONSENT_ITEMS,
-  missingRequiredConsents,
-  type ConsentRole,
-} from '../common/constants/consent.constants';
+import { consentsFor } from '../common/utils/consents.util';
 import { currentYearKst } from '../common/utils/kst-date.util';
+import { LINK_REQUEST_LIMIT_MESSAGE } from '../common/constants/link.constants';
 import {
+  LinkRequestLimitError,
   LoginIdTakenError,
   StudentCodeNotFoundError,
   StudentCodeTakenError,
@@ -38,26 +35,6 @@ import { generateStudentCode } from './utils/student-code.util';
 // 코드 공간(약 6×10^10)이 커서 사실상 충돌하지 않지만, 무한 재시도는 막습니다.
 const STUDENT_CODE_MAX_ATTEMPTS = 5;
 const LOGIN_ID_TAKEN_MESSAGE = '이미 사용 중인 아이디입니다.';
-
-/**
- * 동의한 항목을 기록할 형태로 바꿉니다. 필수 항목이 하나라도 빠지면 400입니다
- * (동의는 선택권이 아니라 사전 고지 목적이라 필수 항목 없이는 가입할 수 없음).
- */
-function consentsFor(role: ConsentRole, agreed: string[]) {
-  const missing = missingRequiredConsents(role, agreed);
-  if (missing.length > 0) {
-    throw new BadRequestException(
-      `필수 동의 항목에 모두 동의해 주세요: ${missing.join(', ')}`,
-    );
-  }
-  return CONSENT_ITEMS[role]
-    .filter((item) => agreed.includes(item.key))
-    .map((item) => ({
-      key: item.key,
-      version: item.version,
-      aboutChild: item.aboutChild ?? false,
-    }));
-}
 
 @Injectable()
 export class AuthService {
@@ -103,13 +80,21 @@ export class AuthService {
     }
   }
 
+  /**
+   * 보호자 가입: 계정 동의(약관·개인정보, 마케팅 선택)만 받습니다. 자녀는 가입 후 연결 요청으로 추가합니다.
+   * 전환용: studentCode를 함께 보내면 자녀 관련 동의까지 받아 가입과 함께 연결 요청(학생 수락 대기)을 만듭니다.
+   */
   async signupParent(dto: SignupParentDto): Promise<SignupParentResponseDto> {
-    const consents = consentsFor('PARENT', dto.agreements);
+    const studentCode = dto.studentCode?.trim() || undefined;
+    const consents = [
+      ...consentsFor('PARENT', dto.agreements, false),
+      ...(studentCode ? consentsFor('PARENT', dto.agreements, true) : []),
+    ];
     const agreed = (key: string) => dto.agreements.includes(key);
     const passwordHash = await hash(dto.password, PASSWORD_SALT_ROUNDS);
 
     try {
-      const parent = await this.userRepository.createParentWithStudentLink(
+      const parent = await this.userRepository.createParent(
         {
           loginId: dto.loginId,
           passwordHash,
@@ -119,10 +104,7 @@ export class AuthService {
           marketingAgreed: agreed('marketing'),
           consents,
         },
-        {
-          studentCode: dto.studentCode,
-          guardianConsentAgreed: agreed('childPrivacy'),
-        },
+        studentCode ? { studentCode } : undefined,
       );
       return { id: parent.id };
     } catch (error) {
@@ -131,6 +113,9 @@ export class AuthService {
       }
       if (error instanceof StudentCodeNotFoundError) {
         throw new NotFoundException('일치하는 학생 코드를 찾을 수 없습니다.');
+      }
+      if (error instanceof LinkRequestLimitError) {
+        throw new ConflictException(LINK_REQUEST_LIMIT_MESSAGE);
       }
       throw error;
     }

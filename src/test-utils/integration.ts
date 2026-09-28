@@ -6,6 +6,7 @@ import request from 'supertest';
 import type TestAgent from 'supertest/lib/agent';
 import { AppModule } from '../app.module';
 import { configureApp } from '../app.setup';
+import { CHILD_CONSENT_KEYS } from '../common/constants/consent.constants';
 import { ContentImportService } from '../content/content-import.service';
 import { ImportBook } from '../content/interfaces/import-book.interface';
 import { PrismaContentRepository } from '../content/repositories/prisma-content.repository';
@@ -96,4 +97,40 @@ export async function loginAsNewStudent(
     studentId: signup.body.id as number,
     studentCode: signup.body.studentCode as string,
   };
+}
+
+/** 보호자 가입(학생 코드 없이) 후 로그인한 에이전트 */
+export async function loginAsNewParent(app: INestApplication, loginId: string) {
+  const agent: TestAgent = request.agent(app.getHttpServer());
+  const signup = await agent
+    .post('/auth/signup/parent')
+    .send({
+      name: '보호자',
+      loginId,
+      password: 'password123',
+      agreements: ['terms', 'guardianPrivacy'],
+    })
+    .expect(201);
+  await agent
+    .post('/auth/login')
+    .send({ role: 'PARENT', loginId, password: 'password123' })
+    .expect(200);
+  return { agent, parentId: signup.body.id as number };
+}
+
+/** 보호자가 연결을 요청하고 학생이 수락해 연결된 보호자 에이전트 */
+export async function loginAsLinkedParent(
+  app: INestApplication,
+  kid: { agent: TestAgent; studentCode: string },
+  loginId: string,
+) {
+  const parent = await loginAsNewParent(app, loginId);
+  await parent.agent
+    .post('/parents/me/link-requests')
+    .send({ studentCode: kid.studentCode, agreements: CHILD_CONSENT_KEYS })
+    .expect(201);
+  await kid.agent
+    .post('/students/me/link-requests/' + parent.parentId + '/accept')
+    .expect(200);
+  return parent.agent;
 }
