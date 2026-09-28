@@ -399,7 +399,8 @@ describe('보호자 대시보드·보상 (통합)', () => {
       status: 'NORMAL',
     });
     expect(stage('EMOTION').status).toBe('COMFORTABLE');
-    expect(screen.comments).toHaveLength(5);
+    // 누가·무슨 일은 같은 문구라 한 번만(5유형 → 4개)
+    expect(screen.comments).toHaveLength(4);
     expect(screen.comments).toContainEqual({
       stage: 'WHY',
       status: 'NEEDS_HELP',

@@ -138,13 +138,21 @@ export class DashboardService {
       comfortable: byStage
         .filter((s) => s.status === 'COMFORTABLE')
         .map((s) => s.stage),
+      // 누가·무슨 일은 같은 영역(인물과 사건) 문구를 써서, 상태·문구가 같으면 한 번만 보냅니다.
       comments: byStage
         .filter((s) => s.status !== 'COLLECTING')
         .map((s) => ({
           stage: s.stage,
           status: s.status,
           text: commentOf(s.stage as QuestionStage, s.status),
-        })),
+        }))
+        .filter(
+          (comment, i, all) =>
+            all.findIndex(
+              (other) =>
+                other.status === comment.status && other.text === comment.text,
+            ) === i,
+        ),
       reflections: overview.reflections.map(
         ({ drawingKey, ...reflection }) => ({
           ...reflection,
