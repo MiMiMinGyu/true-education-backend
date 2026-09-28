@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MAX_PENDING_LINK_REQUESTS } from '../../common/constants/link.constants';
 import {
@@ -69,7 +69,26 @@ export class PrismaUserRepository implements IUserRepository {
     });
   }
 
-  createStudent(student: NewStudent): Promise<StudentAccount> {
+  async createStudent(student: NewStudent): Promise<StudentAccount> {
+    try {
+      return await this.insertStudent(student);
+    } catch (error) {
+      // 다른 아이디로 동시에 가입한 학생이 우연히 같은 코드를 뽑으면, 둘 다 위 확인을 통과한 뒤
+      // 늦은 쪽이 UNIQUE(student_code)에 걸립니다. 아이디는 잠금으로 직렬화되므로 남는 충돌은 코드입니다.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        if (await this.isLoginIdTaken(student.loginId)) {
+          throw new LoginIdTakenError(student.loginId);
+        }
+        throw new StudentCodeTakenError();
+      }
+      throw error;
+    }
+  }
+
+  private insertStudent(student: NewStudent): Promise<StudentAccount> {
     return this.prisma.$transaction(async (tx) => {
       await lockLoginId(tx, student.loginId);
       if (await isLoginIdTakenIn(tx, student.loginId)) {
