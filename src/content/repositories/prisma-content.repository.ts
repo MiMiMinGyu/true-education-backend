@@ -28,6 +28,9 @@ export class PrismaContentRepository implements IContentRepository {
       const bookData = {
         ...book,
         content: book.content as unknown as Prisma.InputJsonValue,
+        titleHints: book.titleHints ?? Prisma.DbNull,
+        sourceMeta:
+          (book.sourceMeta as Prisma.InputJsonValue | null) ?? Prisma.DbNull,
       };
       const saved = await tx.book.upsert({
         where: { externalId: book.externalId },
@@ -62,6 +65,7 @@ export class PrismaContentRepository implements IContentRepository {
             question.evidence == null
               ? Prisma.DbNull
               : (question.evidence as Prisma.InputJsonValue),
+          explanation: question.explanation,
         };
         await tx.question.upsert({
           where: {

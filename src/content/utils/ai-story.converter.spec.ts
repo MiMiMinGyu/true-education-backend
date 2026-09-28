@@ -138,3 +138,90 @@ describe('convertAiStory', () => {
     expect(result.status).toBe('INVALID');
   });
 });
+
+describe('convertAiStory — 기준 형식(folkency-5747, 본문·문제 한 파일)', () => {
+  const folkency = () =>
+    JSON.parse(
+      readFileSync(
+        join(__dirname, '../../../prisma/seed/ai/folkency-5747.json'),
+        'utf8',
+      ),
+    ) as Record<string, unknown>;
+
+  it('meta.activities의 이해 질문·순서 맞추기·제목 힌트와 출처를 모두 옮긴다', () => {
+    const result = convertAiStory(folkency());
+    if (result.status !== 'OK') throw new Error(JSON.stringify(result));
+    const { book } = result;
+
+    expect(book.questions).toHaveLength(4);
+    expect(book.questions[0]).toMatchObject({
+      externalKey: 'q1',
+      stage: 'WHO',
+      options: ['산신령', '연못에 사는 물고기', '나무꾼'],
+      correct: 2,
+      hint: '이야기의 맨 처음에 나오는 사람을 생각해 보세요.',
+      explanation: '이야기의 첫 문장에 나무꾼이 살았다고 나와 있어요.',
+      evidence: [
+        { paragraph_id: 'p001', quote: '옛날에 한 나무꾼이 살았어요.' },
+      ],
+    });
+    expect(book.questions.map((q) => q.stage)).toEqual([
+      'WHO',
+      'WHAT',
+      'WHY',
+      'EMOTION',
+    ]);
+    // 따옴표·쉼표가 섞인 인용도 본문 쪽을 찾는다
+    expect(book.questions[2].evidence?.[0].paragraph_id).toBe('p007');
+    expect(book.ordering?.cards.map((c) => c.id)).toEqual([
+      'e1',
+      'e2',
+      'e3',
+      'e4',
+    ]);
+    expect(book.ordering?.cards[0].text).toBe(
+      '나무꾼이 연못에 도끼를 빠뜨렸어요.',
+    );
+    expect(book.titleHints).toHaveLength(3);
+    expect(book).toMatchObject({
+      sourceUrl: 'https://folkency.nfm.go.kr/topic/detail/5747',
+      license: expect.stringContaining('공공누리 제2유형'),
+      bibliography: '[출처: 금도끼은도끼–국립민속박물관 한국민속대백과사전]',
+    });
+    // 옮기지 않은 meta는 그대로 보존(문제 본문은 questions 테이블에만)
+    expect(book.sourceMeta).toMatchObject({
+      model: 'exaone4.0-edit:32b',
+      validation: { status: 'not_run' },
+      activities: {
+        sequence: { id: 'folkency-5747-sequence', displayOrder: [3, 0, 2, 1] },
+      },
+    });
+    expect(
+      (book.sourceMeta?.activities as Record<string, unknown>).comprehension,
+    ).toBeUndefined();
+    expect(validateImportBook(book).errors).toEqual([]);
+  });
+
+  it('검증 전 상태와 줄 끝 따옴표·쉼표를 경고로 알리고 본문은 바꾸지 않는다', () => {
+    const result = convertAiStory(folkency());
+    if (result.status !== 'OK') throw new Error(JSON.stringify(result));
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        '내용 검증 상태가 "not_run"입니다.',
+        expect.stringContaining('줄 끝에 따옴표·쉼표'),
+      ]),
+    );
+    expect(result.book.paragraphs[2].sentences[0]).toMatch(/',$/);
+  });
+
+  it('알 수 없는 유형이면 적재하지 않는다', () => {
+    const json = folkency();
+    const meta = json.meta as { activities: { comprehension: object[] } };
+    meta.activities.comprehension[0] = {
+      ...meta.activities.comprehension[0],
+      category: '어디서',
+    };
+    const result = convertAiStory(json);
+    expect(result.status).toBe('INVALID');
+  });
+});

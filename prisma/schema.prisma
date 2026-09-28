@@ -122,6 +122,10 @@ model Book {
   /// { paragraphs: [{ id, lines: [{ id, text, syllableCount }] }], glossary: {...} }
   content       Json
   coverImageUrl String?  @map("cover_image_url")
+  /// 제목 짓기 힌트 질문(AI JSON meta.activities.titleActivity.hintQuestions, string[])
+  titleHints    Json?    @map("title_hints")
+  /// AI JSON meta 중 본문·문제 외 전부(출처 상세·라이선스·생성 모델·검수 상태 등). 원본 보존용
+  sourceMeta    Json?    @map("source_meta")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -161,6 +165,8 @@ model Question {
   correctAnswer  Json           @map("correct_answer")
   hint           String?
   evidence       Json?
+  /// 정답 설명. 채점 뒤(문제가 끝난 뒤)에만 응답
+  explanation    String?
 
   book     Book              @relation(fields: [bookId], references: [id])
   attempts QuestionAttempt[]

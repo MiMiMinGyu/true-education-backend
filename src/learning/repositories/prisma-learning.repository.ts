@@ -136,6 +136,7 @@ class PrismaLearningStore implements ILearningRepository {
             title: true,
             author: true,
             content: true,
+            titleHints: true,
             questions: { orderBy: { questionOrder: 'asc' } },
           },
         },
@@ -156,6 +157,9 @@ class PrismaLearningStore implements ILearningRepository {
         title: book.title,
         author: book.author,
         content: book.content as unknown as BookContent,
+        titleHints: Array.isArray(book.titleHints)
+          ? book.titleHints.filter((h): h is string => typeof h === 'string')
+          : [],
       },
       questions: book.questions.map((question) => ({
         id: question.id,
@@ -167,6 +171,7 @@ class PrismaLearningStore implements ILearningRepository {
         correctAnswer: question.correctAnswer,
         hint: question.hint,
         evidence: question.evidence,
+        explanation: question.explanation,
       })),
     };
   }

@@ -17,6 +17,7 @@ import {
   SaveReflectionResponseDto,
   SaveTitleResponseDto,
   StageResultDto,
+  TitleActivityDto,
 } from './dto/responses/learning-responses.dto';
 import {
   LEARNING_REPOSITORY,
@@ -25,6 +26,7 @@ import {
 } from './interfaces/learning-repository.interface';
 import { AdvanceResult, ProgressService } from './progress.service';
 import { loadAssignment } from './utils/assignment.util';
+import { hasReached } from './utils/stage-flow.util';
 import { detectImageType, IMAGE_CONTENT_TYPES } from './utils/image.util';
 
 const STAGE_MESSAGES: Partial<Record<ActivityStage, string>> = {
@@ -52,6 +54,18 @@ export class BookMakingService {
     private readonly progress: ProgressService,
     @Inject(STORAGE_SERVICE) private readonly storage: StorageService,
   ) {}
+
+  /** 제목 짓기 화면용: 원래 제목과 책마다의 힌트 질문(정답·평가 없음) */
+  async getTitleActivity(assignmentId: number): Promise<TitleActivityDto> {
+    const assignment = await loadAssignment(this.repository, assignmentId);
+    if (!hasReached(assignment.stage, 'TITLE')) {
+      throw new ConflictException('아직 제목 짓기 단계가 아닙니다.');
+    }
+    return {
+      originalTitle: assignment.book.title,
+      hintQuestions: assignment.book.titleHints,
+    };
+  }
 
   saveTitle(
     assignmentId: number,

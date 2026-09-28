@@ -50,6 +50,7 @@ import {
   SaveReadingPageResponseDto,
   SaveReflectionResponseDto,
   SaveTitleResponseDto,
+  TitleActivityDto,
 } from './dto/responses/learning-responses.dto';
 import { AssignmentOwnerGuard } from './guards/assignment-owner.guard';
 import { QuizService } from './quiz.service';
@@ -161,6 +162,18 @@ export class AssignmentsController {
     @Body() dto: OrderingAttemptDto,
   ): Promise<OrderingAttemptResponseDto> {
     return this.quizService.submitOrdering(id, dto.order, dto.responseTimeMs);
+  }
+
+  @ApiOperation({
+    summary: '제목 짓기 화면 정보',
+    description:
+      '원래 제목과 책마다의 힌트 질문(없으면 빈 배열). 제목 짓기 단계부터 조회할 수 있습니다.',
+  })
+  @ApiOkResponse({ type: TitleActivityDto })
+  @ApiConflictResponse({ description: '아직 제목 짓기 단계가 아님' })
+  @Get('title')
+  getTitle(@Param('id', ParseIntPipe) id: number): Promise<TitleActivityDto> {
+    return this.bookMakingService.getTitleActivity(id);
   }
 
   @ApiOperation({
