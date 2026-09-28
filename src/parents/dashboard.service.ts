@@ -1,75 +1,85 @@
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import {
-  DASHBOARD_MAX_PERIOD_DAYS,
-  DASHBOARD_PERIOD_DAYS,
-  DASHBOARD_POLICY_VERSION,
-  DASHBOARD_PROFILE_ID,
-  DASHBOARD_SPEC_VERSION,
+  COLLECTING_MESSAGE,
+  READING_SPEED_DAYS,
+  RECENT_REFLECTIONS,
 } from '../common/constants/dashboard';
-import { todayKst } from '../common/utils/kst-date.util';
-import { DashboardDto, DashboardQueryDto } from './dto/parents.dto';
+import type { QuestionStage } from '../content/interfaces/content-repository.interface';
 import {
-  AREA_ORDER,
-  CHILD_NAME_FALLBACK,
-  GROUP_ORDER,
-  GROUP_TITLES,
-  HEADER_COPY,
-  NOTICE,
-} from './guardian-copy';
+  STORAGE_SERVICE,
+  type StorageService,
+} from '../storage/storage.interface';
+import {
+  DashboardDto,
+  DashboardQueryDto,
+  StageAnalysisDto,
+  StageStatus,
+} from './dto/parents.dto';
+import { AREA_COPY, AreaId, AreaState } from './guardian-copy';
 import {
   PARENT_REPOSITORY,
-  type DashboardPeriod,
   type IParentRepository,
 } from './interfaces/parent-repository.interface';
-import { assessArea } from './utils/dashboard.util';
+import { resolvePeriod } from './observation.service';
+import { judgeStages } from './utils/dashboard.util';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const dayNumber = (date: string) => Date.parse(`${date}T00:00:00Z`) / DAY_MS;
-const shiftDate = (date: string, days: number) =>
-  new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS)
-    .toISOString()
-    .slice(0, 10);
-const isRealDate = (date: string) =>
-  !Number.isNaN(Date.parse(`${date}T00:00:00Z`)) &&
-  new Date(`${date}T00:00:00Z`).toISOString().startsWith(date);
+const STAGES: readonly QuestionStage[] = [
+  'WHO',
+  'WHAT',
+  'WHY',
+  'EMOTION',
+  'ORDER',
+];
 
-/** 조회 기간(Asia/Seoul, 양 끝 포함). 생략하면 오늘까지 최근 14일 */
-export function resolvePeriod(
-  query: DashboardQueryDto,
-  today = todayKst(),
-): DashboardPeriod {
-  const endDate = query.endDate ?? today;
-  const startDate =
-    query.startDate ?? shiftDate(endDate, -(DASHBOARD_PERIOD_DAYS - 1));
-  if (!isRealDate(startDate) || !isRealDate(endDate)) {
-    throw new BadRequestException('존재하지 않는 날짜입니다.');
-  }
-  const days = dayNumber(endDate) - dayNumber(startDate) + 1;
-  if (days < 1) {
-    throw new BadRequestException('시작일은 종료일보다 늦을 수 없습니다.');
-  }
-  if (days > DASHBOARD_MAX_PERIOD_DAYS) {
-    throw new BadRequestException(
-      `조회 기간은 최대 ${DASHBOARD_MAX_PERIOD_DAYS}일입니다.`,
-    );
-  }
-  return { startDate, endDate };
+const STAGE_LABELS: Record<QuestionStage, string> = {
+  WHO: '누가',
+  WHAT: '무슨 일',
+  WHY: '왜',
+  EMOTION: '마음',
+  ORDER: '순서 맞추기',
+};
+
+/** 문구(AI 파트 카탈로그)를 가져올 영역 */
+const STAGE_AREA: Record<QuestionStage, Exclude<AreaId, 'gist'>> = {
+  WHO: 'facts',
+  WHAT: 'facts',
+  WHY: 'cause',
+  EMOTION: 'emotion',
+  ORDER: 'sequence',
+};
+
+/** AI 파트 판정 상태 → 프론트 화면 상태 */
+const STATUS_OF: Record<AreaState, StageStatus> = {
+  needsSupport: 'NEEDS_HELP',
+  practicing: 'NORMAL',
+  supported: 'COMFORTABLE',
+  insufficientData: 'COLLECTING',
+  notAssessable: 'COLLECTING',
+  notObserved: 'COLLECTING',
+};
+
+const round2 = (value: number) => Math.round(value * 100) / 100;
+const rate = (count: number, total: number) =>
+  total === 0 ? null : round2(count / total);
+
+/** 프론트 보호자 화면이 쓰는 문구: 함께 연습·관찰 중이면 연습 제안, 스스로 해결이면 칭찬형 제안 */
+function commentOf(stage: QuestionStage, status: StageStatus): string {
+  const { suggestions } = AREA_COPY[STAGE_AREA[stage]];
+  return status === 'COMFORTABLE'
+    ? suggestions.supported
+    : suggestions.needsSupport;
 }
 
 /**
- * 보호자 대시보드(AI 파트 명세 v3, AI 미사용): 기간 안에 완료한 책의 풀이 기록으로 영역별 상태를 판정하고
- * 상태에 맞는 문구를 골라 돌려줍니다. 프론트는 받은 문구를 그대로 표시합니다.
+ * 보호자 대시보드(프론트 보호자 화면 형태, AI 미사용).
+ * 화면 형태는 프론트 기준이고, 유형별 판정은 AI 파트 기준(observation.service와 같은 규칙)을 유형마다 적용합니다.
  */
 @Injectable()
 export class DashboardService {
   constructor(
     @Inject(PARENT_REPOSITORY)
     private readonly repository: IParentRepository,
+    @Inject(STORAGE_SERVICE) private readonly storage: StorageService,
   ) {}
 
   async dashboard(
@@ -79,47 +89,68 @@ export class DashboardService {
     const period = resolvePeriod(query);
     const source = await this.repository.getDashboardSource(studentId, period);
     if (!source) throw new NotFoundException('학생을 찾을 수 없습니다.');
+    const overview = await this.repository.getOverview(
+      studentId,
+      READING_SPEED_DAYS,
+      RECENT_REFLECTIONS,
+    );
 
-    const childName = source.student.name.trim() || CHILD_NAME_FALLBACK;
-    const sessionCount = source.books.length;
-    const areas = AREA_ORDER.map((id) => assessArea(id, source.books));
+    const byStage: StageAnalysisDto[] = STAGES.map((stage) => {
+      const { metrics: m, state } = judgeStages([stage], source.books);
+      const valid = m.validQuestionCount;
+      return {
+        stage,
+        label: STAGE_LABELS[stage],
+        total: valid,
+        firstTryRate: rate(m.firstIndependentCorrectCount, valid),
+        afterRetryRate: rate(
+          m.firstErrorRecoveredWithHintCount +
+            m.firstErrorRecoveredWithoutHintCount,
+          valid,
+        ),
+        revealedRate: rate(m.answerRevealedQuestionCount, valid),
+        status: STATUS_OF[state],
+      };
+    });
+    const collecting = byStage.every((s) => s.status === 'COLLECTING');
 
     return {
-      specVersion: DASHBOARD_SPEC_VERSION,
-      policyVersion: DASHBOARD_POLICY_VERSION,
-      childId: String(source.student.id),
-      availability: 'available',
-      period: { ...period, timeZone: 'Asia/Seoul' },
-      profileId: DASHBOARD_PROFILE_ID,
-      header: {
-        title: HEADER_COPY.title(childName),
-        periodLabel: `${period.startDate} – ${period.endDate}`,
-        sessionCount,
-        summary:
-          sessionCount > 0
-            ? HEADER_COPY.hasSessions(sessionCount)
-            : HEADER_COPY.noSessions,
+      student: { studentId: source.student.id, name: source.student.name },
+      summary: {
+        completedBooks: overview.completedBooks,
+        stampTotal: overview.stampTotal,
+        inProgress: overview.inProgress,
       },
-      areas: areas.map((area) => ({
-        ...area,
-        metrics: { ...area.metrics },
-      })),
-      groups: GROUP_ORDER.map((state) => ({
-        id: state,
-        title: GROUP_TITLES[state],
-        areaIds: areas.filter((a) => a.state === state).map((a) => a.id),
-      })).filter((group) => group.areaIds.length > 0),
-      notice: NOTICE,
-      errorCode: null,
-      reflections: source.books
-        .filter((book) => book.reflection)
-        .map((book) => ({
-          assignmentId: book.assignmentId,
-          title: book.title,
-          transcript: book.reflection!.transcript,
-          durationMs: book.reflection!.durationMs,
-          completedAt: book.completedAt,
+      readingSpeed: overview.dailyReading
+        .filter((day) => day.durationMs > 0)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((day) => ({
+          ...day,
+          syllablesPerMinute:
+            Math.round((day.syllables / (day.durationMs / 60_000)) * 10) / 10,
         })),
+      collecting,
+      ...(collecting && { collectingMessage: COLLECTING_MESSAGE }),
+      byStage,
+      needsHelp: byStage
+        .filter((s) => s.status === 'NEEDS_HELP')
+        .map((s) => s.stage),
+      comfortable: byStage
+        .filter((s) => s.status === 'COMFORTABLE')
+        .map((s) => s.stage),
+      comments: byStage
+        .filter((s) => s.status !== 'COLLECTING')
+        .map((s) => ({
+          stage: s.stage,
+          status: s.status,
+          text: commentOf(s.stage as QuestionStage, s.status),
+        })),
+      reflections: overview.reflections.map(
+        ({ drawingKey, ...reflection }) => ({
+          ...reflection,
+          coverImageUrl: this.storage.urlFor(drawingKey),
+        }),
+      ),
     };
   }
 }

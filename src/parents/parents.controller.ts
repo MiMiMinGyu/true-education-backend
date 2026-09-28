@@ -30,10 +30,12 @@ import type { SessionUser } from '../auth/interfaces/session-user.interface';
 import { RewardBoardDto, SetRewardDto } from '../rewards/dto/rewards.dto';
 import { RewardsService } from '../rewards/rewards.service';
 import { DashboardService } from './dashboard.service';
+import { ObservationService } from './observation.service';
 import {
   DashboardDto,
   DashboardQueryDto,
   LinkedStudentDto,
+  ObservationDto,
 } from './dto/parents.dto';
 import { LinkedStudentGuard } from './guards/linked-student.guard';
 import {
@@ -54,6 +56,7 @@ export class ParentsController {
     @Inject(PARENT_REPOSITORY)
     private readonly repository: IParentRepository,
     private readonly dashboardService: DashboardService,
+    private readonly observationService: ObservationService,
     private readonly rewardsService: RewardsService,
   ) {}
 
@@ -65,9 +68,10 @@ export class ParentsController {
   }
 
   @ApiOperation({
-    summary: '자녀 학습 대시보드',
+    summary: '자녀 학습 대시보드(보호자 화면)',
     description:
-      'AI 파트 명세 v3. 기간(기본 최근 14일) 안에 완료한 책으로 영역별 상태(함께 연습·연습하며 관찰·스스로 해결·기록 부족·판정 불가·활동 없음)를 판정하고, 표시할 문구를 함께 돌려줍니다.',
+      '프론트 보호자 화면 형태: 요약, 읽기 속도, 유형별(누가·무슨 일·왜·마음·순서) 결과와 판정, 문구, 최근 설명 말하기(표지 그림 포함). ' +
+      '유형별 판정은 AI 파트 기준을 조회 기간(기본 최근 14일) 안에 완료한 책에 적용합니다.',
   })
   @ApiOkResponse({ type: DashboardDto })
   @ApiBadRequestResponse({
@@ -80,6 +84,24 @@ export class ParentsController {
     @Query() query: DashboardQueryDto,
   ): Promise<DashboardDto> {
     return this.dashboardService.dashboard(studentId, query);
+  }
+
+  @ApiOperation({
+    summary: '자녀 관찰 결과(AI 파트 명세 v3 형태)',
+    description:
+      'AI 파트 명세 v3 응답. 기간 안에 완료한 책으로 영역별 상태(함께 연습·연습하며 관찰·스스로 해결·기록 부족·판정 불가·활동 없음)와 표시 문구를 돌려줍니다. 지금 프론트 화면은 /dashboard를 씁니다.',
+  })
+  @ApiOkResponse({ type: ObservationDto })
+  @ApiBadRequestResponse({
+    description: '날짜 형식 오류, 시작일 > 종료일, 92일 초과',
+  })
+  @UseGuards(LinkedStudentGuard)
+  @Get(':studentId/observations')
+  observations(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Query() query: DashboardQueryDto,
+  ): Promise<ObservationDto> {
+    return this.observationService.observations(studentId, query);
   }
 
   @ApiOperation({

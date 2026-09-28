@@ -165,10 +165,18 @@ describe('보호자 대시보드·보상 (통합)', () => {
     return id;
   }
 
+  /** AI 파트 명세 v3 형태(영역별 관찰) */
   const dashboardOf = async (parent: TestAgent, studentId: number, q = '') =>
     (
       await parent
-        .get(`/parents/me/students/${studentId}/dashboard${q}`)
+        .get(`/parents/me/students/${studentId}/observations${q}`)
+        .expect(200)
+    ).body;
+  /** 프론트 보호자 화면 형태 */
+  const screenOf = async (parent: TestAgent, studentId: number) =>
+    (
+      await parent
+        .get(`/parents/me/students/${studentId}/dashboard`)
         .expect(200)
     ).body;
   const areaOf = (body: { areas: { id: string }[] }, id: string) =>
@@ -324,12 +332,91 @@ describe('보호자 대시보드·보상 (통합)', () => {
     expect(recent.header.sessionCount).toBe(2);
     expect(areaOf(recent, 'cause').state).toBe('insufficientData');
 
-    const base = `/parents/me/students/${kid.studentId}/dashboard`;
-    await parent.get(`${base}?startDate=2026-02-30`).expect(400);
-    await parent.get(`${base}?startDate=26-09-01`).expect(400);
-    await parent
-      .get(`${base}?startDate=2026-09-10&endDate=2026-09-01`)
-      .expect(400);
+    for (const path of ['observations', 'dashboard']) {
+      const base = `/parents/me/students/${kid.studentId}/${path}`;
+      await parent.get(`${base}?startDate=2026-02-30`).expect(400);
+      await parent.get(`${base}?startDate=26-09-01`).expect(400);
+      await parent
+        .get(`${base}?startDate=2026-09-10&endDate=2026-09-01`)
+        .expect(400);
+    }
+  });
+
+  it('보호자 화면(/dashboard): 프론트 형태로 유형별 결과를 AI 파트 기준으로 판정, 설명 말하기에 표지 그림', async () => {
+    const kid = await loginAsNewStudent(ctx.app, 'kid14');
+    const parent = await loginAsLinkedParent(kid.studentCode, 'parent14');
+
+    const empty = await screenOf(parent, kid.studentId);
+    expect(empty).toMatchObject({
+      student: { studentId: kid.studentId, name: '테스트' },
+      summary: { completedBooks: 0, stampTotal: 0, inProgress: null },
+      readingSpeed: [],
+      collecting: true,
+      collectingMessage: '데이터를 모으고 있어요',
+      needsHelp: [],
+      comfortable: [],
+      comments: [],
+      reflections: [],
+    });
+    expect(empty.byStage.map((s: { status: string }) => s.status)).toEqual(
+      Array(5).fill('COLLECTING'),
+    );
+
+    await completeBook(kid.agent, 5, ['WHY', 'ORDER']);
+    await completeBook(kid.agent, 4, ['WHY', 'ORDER']);
+    await completeBook(kid.agent, 3, ['WHY']);
+    await completeBook(kid.agent, 2, ['EMOTION']);
+    const lastId = await completeBook(kid.agent, 1);
+    const stampTotal = (
+      await ctx.prisma.studentStamp.aggregate({
+        where: { studentId: kid.studentId },
+        _sum: { amount: true },
+      })
+    )._sum.amount;
+
+    const screen = await screenOf(parent, kid.studentId);
+    expect(screen).toMatchObject({
+      summary: { completedBooks: 5, stampTotal, inProgress: null },
+      collecting: false,
+      needsHelp: ['WHY'],
+      comfortable: ['WHO', 'WHAT', 'EMOTION'],
+    });
+    expect(screen).not.toHaveProperty('collectingMessage');
+    const stage = (key: string) =>
+      screen.byStage.find((s: { stage: string }) => s.stage === key);
+    expect(stage('WHY')).toEqual({
+      stage: 'WHY',
+      label: '왜',
+      total: 5,
+      firstTryRate: 0.4,
+      afterRetryRate: 0.6,
+      revealedRate: 0,
+      status: 'NEEDS_HELP',
+    });
+    expect(stage('ORDER')).toMatchObject({
+      firstTryRate: 0.6,
+      afterRetryRate: 0.4,
+      status: 'NORMAL',
+    });
+    expect(stage('EMOTION').status).toBe('COMFORTABLE');
+    expect(screen.comments).toHaveLength(5);
+    expect(screen.comments).toContainEqual({
+      stage: 'WHY',
+      status: 'NEEDS_HELP',
+      text: expect.stringContaining('힌트'),
+    });
+    expect(screen.readingSpeed).toHaveLength(5);
+    expect(screen.readingSpeed[0].syllablesPerMinute).toBeGreaterThan(0);
+    expect(screen.reflections).toHaveLength(5);
+    expect(screen.reflections[0]).toMatchObject({
+      assignmentId: lastId,
+      title: '내 책 1',
+      transcript: '설명 1',
+      durationMs: 10000,
+      coverImageUrl: expect.stringMatching(
+        new RegExp(`/files/drawings/${lastId}/.+\\.png$`),
+      ),
+    });
   });
 
   it('보상: 5의 배수 목표치만, 선물한 뒤에는 고치거나 지울 수 없고, 학생은 같은 보상판을 읽기만', async () => {

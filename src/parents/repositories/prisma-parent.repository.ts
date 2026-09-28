@@ -6,6 +6,7 @@ import {
   DashboardSource,
   IParentRepository,
   LinkedStudent,
+  StudentOverview,
 } from '../interfaces/parent-repository.interface';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -106,6 +107,84 @@ export class PrismaParentRepository implements IParentRepository {
             })),
         })),
         reflection: assignment.drawing?.reflection ?? null,
+      })),
+    };
+  }
+
+  async getOverview(
+    studentId: number,
+    readingDays: number,
+    reflectionLimit: number,
+  ): Promise<StudentOverview> {
+    const [completedBooks, stamps, inProgress, reflections, daily] =
+      await Promise.all([
+        this.prisma.bookAssignment.count({
+          where: { studentId, status: 'COMPLETED' },
+        }),
+        this.prisma.studentStamp.aggregate({
+          where: { studentId },
+          _sum: { amount: true },
+        }),
+        this.prisma.bookAssignment.findFirst({
+          where: { studentId, status: 'IN_PROGRESS' },
+          select: {
+            id: true,
+            book: { select: { title: true } },
+            progress: { select: { currentStage: true } },
+          },
+        }),
+        this.prisma.bookAssignment.findMany({
+          where: {
+            studentId,
+            status: 'COMPLETED',
+            drawing: { reflection: { isNot: null } },
+          },
+          orderBy: { completedAt: 'desc' },
+          take: reflectionLimit,
+          select: {
+            id: true,
+            studentTitle: true,
+            completedAt: true,
+            book: { select: { title: true } },
+            drawing: {
+              select: {
+                imageUrl: true,
+                reflection: { select: { transcript: true, durationMs: true } },
+              },
+            },
+          },
+        }),
+        // 합계는 bigint라 int로 바꿉니다(학생 1명의 하루 합계라 범위 안).
+        this.prisma.$queryRaw<
+          { date: string; syllables: number; durationMs: number }[]
+        >`
+          SELECT to_char(ls.session_date, 'YYYY-MM-DD') AS date,
+                 SUM(ls.read_syllable_count)::int AS syllables,
+                 SUM(ls.reading_duration_ms)::int AS "durationMs"
+          FROM learning_sessions ls
+          JOIN book_assignments ba ON ba.id = ls.book_assignment_id
+          WHERE ba.student_id = ${studentId}
+          GROUP BY ls.session_date
+          ORDER BY ls.session_date DESC
+          LIMIT ${readingDays}`,
+      ]);
+
+    return {
+      completedBooks,
+      stampTotal: stamps._sum.amount ?? 0,
+      inProgress: inProgress && {
+        assignmentId: inProgress.id,
+        title: inProgress.book.title,
+        stage: inProgress.progress?.currentStage ?? 'READING',
+      },
+      dailyReading: daily,
+      reflections: reflections.map((assignment) => ({
+        assignmentId: assignment.id,
+        title: assignment.studentTitle ?? assignment.book.title,
+        transcript: assignment.drawing!.reflection!.transcript,
+        durationMs: assignment.drawing!.reflection!.durationMs,
+        completedAt: assignment.completedAt!,
+        drawingKey: assignment.drawing!.imageUrl,
       })),
     };
   }

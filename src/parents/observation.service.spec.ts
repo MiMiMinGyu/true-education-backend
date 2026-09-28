@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { resolvePeriod } from './dashboard.service';
+import { resolvePeriod } from './observation.service';
 
 describe('resolvePeriod', () => {
   it('생략하면 오늘 포함 최근 14일', () => {

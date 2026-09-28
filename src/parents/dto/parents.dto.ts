@@ -37,13 +37,13 @@ export class DashboardQueryDto {
   endDate?: string;
 }
 
-export class DashboardPeriodDto {
+export class ObservationPeriodDto {
   @ApiProperty({ example: '2026-09-13' }) startDate: string;
   @ApiProperty({ example: '2026-09-26' }) endDate: string;
   @ApiProperty({ example: 'Asia/Seoul' }) timeZone: string;
 }
 
-export class DashboardHeaderDto {
+export class ObservationHeaderDto {
   @ApiProperty({ example: '다은의 읽기 기록' }) title: string;
   @ApiProperty({ example: '2026-09-13 – 2026-09-26' }) periodLabel: string;
   @ApiProperty({ example: 5, description: '기간 안에 완료한 책 수' })
@@ -57,7 +57,7 @@ export class ReferenceDto {
   @ApiProperty() url: string;
 }
 
-export class DashboardAreaDto {
+export class ObservationAreaDto {
   @ApiProperty({ enum: AREA_IDS }) id: string;
   @ApiProperty({ example: '원인 이해' }) title: string;
   @ApiProperty({ enum: AREA_STATES }) state: string;
@@ -93,13 +93,13 @@ export class DashboardAreaDto {
   @ApiProperty({ type: ReferenceDto }) reference: ReferenceDto;
 }
 
-export class DashboardGroupDto {
+export class ObservationGroupDto {
   @ApiProperty({ enum: AREA_STATES }) id: string;
   @ApiProperty({ example: '함께 연습해 봐요' }) title: string;
   @ApiProperty({ example: ['cause'] }) areaIds: string[];
 }
 
-export class DashboardReflectionDto {
+export class ObservationReflectionDto {
   @ApiProperty({ example: 12 }) assignmentId: number;
   @ApiProperty({ example: '호랑이와 나무꾼' }) title: string;
   @ApiProperty({ example: '호랑이가 나무꾼을 형님이라고 불렀어요.' })
@@ -108,32 +108,166 @@ export class DashboardReflectionDto {
   @ApiProperty() completedAt: Date;
 }
 
-export class DashboardDto {
+export class ObservationDto {
   @ApiProperty({ example: '3.0.0' }) specVersion: string;
   @ApiProperty({ example: 'guardian-observation-2026-09-v1' })
   policyVersion: string;
   @ApiProperty({ example: '3' }) childId: string;
   @ApiProperty({ example: 'available' }) availability: string;
-  @ApiProperty({ type: DashboardPeriodDto }) period: DashboardPeriodDto;
+  @ApiProperty({ type: ObservationPeriodDto }) period: ObservationPeriodDto;
   @ApiProperty({ example: 'early-reading-v1' }) profileId: string;
-  @ApiProperty({ type: DashboardHeaderDto }) header: DashboardHeaderDto;
+  @ApiProperty({ type: ObservationHeaderDto }) header: ObservationHeaderDto;
   @ApiProperty({
-    type: [DashboardAreaDto],
+    type: [ObservationAreaDto],
     description:
       '원인 이해 → 마음 이해 → 순서 정리 → 인물과 사건 → 요약과 제목 순',
   })
-  areas: DashboardAreaDto[];
+  areas: ObservationAreaDto[];
   @ApiProperty({
-    type: [DashboardGroupDto],
+    type: [ObservationGroupDto],
     description: '상태별 묶음(빈 묶음은 뺌)',
   })
-  groups: DashboardGroupDto[];
+  groups: ObservationGroupDto[];
   @ApiProperty() notice: string;
   @ApiProperty({ nullable: true, type: String, example: null })
   errorCode: string | null;
   @ApiProperty({
-    type: [DashboardReflectionDto],
+    type: [ObservationReflectionDto],
     description: 'v3 외 추가: 기간 안 설명 말하기(최근 완료 순)',
+  })
+  reflections: ObservationReflectionDto[];
+}
+
+// ---------- 프론트 보호자 화면 형태(GET …/dashboard) ----------
+
+const STAGES = ['WHO', 'WHAT', 'WHY', 'EMOTION', 'ORDER'];
+const STATUSES = ['COLLECTING', 'NEEDS_HELP', 'COMFORTABLE', 'NORMAL'];
+
+export type StageStatus =
+  'COLLECTING' | 'NEEDS_HELP' | 'COMFORTABLE' | 'NORMAL';
+
+export class InProgressBookDto {
+  @ApiProperty({ example: 12 }) assignmentId: number;
+  @ApiProperty({ example: '작은 곰과 꿀단지' }) title: string;
+  @ApiProperty({ example: 'QUESTION' }) stage: string;
+}
+
+export class DashboardSummaryDto {
+  @ApiProperty({ example: 4, description: '지금까지 완료한 책 수' })
+  completedBooks: number;
+  @ApiProperty({ example: 6 }) stampTotal: number;
+  @ApiProperty({ type: InProgressBookDto, nullable: true })
+  inProgress: InProgressBookDto | null;
+}
+
+export class ReadingSpeedDto {
+  @ApiProperty({ example: '2026-09-26' }) date: string;
+  @ApiProperty({ example: 84.5, description: '음절/분' })
+  syllablesPerMinute: number;
+  @ApiProperty({ example: 169 }) syllables: number;
+  @ApiProperty({ example: 120000 }) durationMs: number;
+}
+
+export class StageAnalysisDto {
+  @ApiProperty({ enum: STAGES }) stage: string;
+  @ApiProperty({ example: '왜' }) label: string;
+  @ApiProperty({
+    example: 5,
+    description: '기간 안에 완료한 책에서 푼 문제 수',
+  })
+  total: number;
+  @ApiProperty({
+    example: 0.4,
+    nullable: true,
+    type: Number,
+    description: '1차에 스스로 맞힌 비율(0~1)',
+  })
+  firstTryRate: number | null;
+  @ApiProperty({
+    example: 0.4,
+    nullable: true,
+    type: Number,
+    description:
+      '1차 오답 후 맞힌 비율(이해 질문: 힌트를 보고 / 순서 맞추기: 다시 도전해서)',
+  })
+  afterRetryRate: number | null;
+  @ApiProperty({
+    example: 0.2,
+    nullable: true,
+    type: Number,
+    description: '정답이 공개된 비율',
+  })
+  revealedRate: number | null;
+  @ApiProperty({
+    enum: STATUSES,
+    description:
+      'AI 파트 판정 기준(기록 요건 5문제·3세션·3이야기·2날짜 충족 후 함께 연습 60%↑/스스로 해결 80%↑/그 사이)을 유형별로 적용. ' +
+      'COLLECTING: 기록 부족 / NEEDS_HELP: 함께 연습 / COMFORTABLE: 스스로 해결 / NORMAL: 연습하며 관찰',
+  })
+  status: StageStatus;
+}
+
+export class DashboardCommentDto {
+  @ApiProperty({ enum: STAGES }) stage: string;
+  @ApiProperty({ enum: STATUSES.slice(1) }) status: string;
+  @ApiProperty({ example: '정답을 바로 알려주기 전에, …' }) text: string;
+}
+
+export class DashboardReflectionDto {
+  @ApiProperty({ example: 12 }) assignmentId: number;
+  @ApiProperty({ example: '호랑이와 나무꾼' }) title: string;
+  @ApiProperty({
+    example: '호랑이가 나무꾼을 형님이라고 불렀어요.',
+    description: '아이가 그린 표지를 말로 설명한 글',
+  })
+  transcript: string;
+  @ApiProperty({ example: 42000 }) durationMs: number;
+  @ApiProperty() completedAt: Date;
+  @ApiProperty({
+    example: 'http://localhost:4000/files/drawings/12/3f0c….webp',
+    nullable: true,
+    type: String,
+    description: '아이가 그린 표지 그림 주소',
+  })
+  coverImageUrl: string | null;
+}
+
+export class DashboardDto {
+  @ApiProperty({ type: LinkedStudentDto }) student: LinkedStudentDto;
+  @ApiProperty({ type: DashboardSummaryDto }) summary: DashboardSummaryDto;
+  @ApiProperty({
+    type: [ReadingSpeedDto],
+    description:
+      '최근 학습 날짜의 읽기 속도(날짜 오름차순, 아이 차례 줄 기준 음절/분)',
+  })
+  readingSpeed: ReadingSpeedDto[];
+  @ApiProperty({
+    description: '모든 유형이 아직 판정 전(기록 부족)이면 true',
+  })
+  collecting: boolean;
+  @ApiPropertyOptional({ example: '데이터를 모으고 있어요' })
+  collectingMessage?: string;
+  @ApiProperty({
+    type: [StageAnalysisDto],
+    description: '조회 기간(기본 최근 14일) 안에 완료한 책 기준',
+  })
+  byStage: StageAnalysisDto[];
+  @ApiProperty({ enum: STAGES, isArray: true, description: '함께 연습할 유형' })
+  needsHelp: string[];
+  @ApiProperty({
+    enum: STAGES,
+    isArray: true,
+    description: '스스로 해결한 유형',
+  })
+  comfortable: string[];
+  @ApiProperty({
+    type: [DashboardCommentDto],
+    description: '판정된 유형별 사전 정의 문구(AI 파트 문구, AI 미사용)',
+  })
+  comments: DashboardCommentDto[];
+  @ApiProperty({
+    type: [DashboardReflectionDto],
+    description: '최근 설명 말하기(최근 완료 순, 표지 그림 포함)',
   })
   reflections: DashboardReflectionDto[];
 }
