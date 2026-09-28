@@ -24,6 +24,14 @@ export class RewardDto {
   @ApiProperty({ example: '좋아하는 간식 먹기' }) name: string;
   @ApiProperty({ description: '누적 스탬프가 목표치 이상인지' })
   achieved: boolean;
+  @ApiProperty({
+    example: null,
+    nullable: true,
+    type: Date,
+    description:
+      '보호자가 아이에게 보상을 전하고 "선물했어요"를 누른 시각(안 줬으면 null). 전한 뒤에는 보상 글을 바꾸거나 지울 수 없음',
+  })
+  givenAt: Date | null;
 }
 
 export class RewardBoardDto {

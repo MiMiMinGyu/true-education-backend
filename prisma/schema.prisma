@@ -318,14 +318,16 @@ model StudentStamp {
 
 /// 누적 스탬프 목표치(5, 10, 15…)마다 보호자가 정한 보상 1개. CHECK required_stamps > 0 — 마이그레이션 SQL에 있음
 model ParentReward {
-  id             Int      @id @default(autoincrement())
-  parentId       Int      @map("parent_id")
-  studentId      Int      @map("student_id")
+  id             Int       @id @default(autoincrement())
+  parentId       Int       @map("parent_id")
+  studentId      Int       @map("student_id")
   /// 보상 목표치 = 누적 스탬프 수
-  requiredStamps Int      @map("required_stamps")
-  name           String   @db.VarChar(100)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  requiredStamps Int       @map("required_stamps")
+  name           String    @db.VarChar(100)
+  /// 보호자가 아이에게 보상을 전하고 "선물했어요"를 누른 시각(안 줬으면 NULL). 준 뒤에는 보상 글을 바꾸거나 지울 수 없음
+  givenAt        DateTime? @map("given_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   parent  Parent  @relation(fields: [parentId], references: [id])
   student Student @relation(fields: [studentId], references: [id])
