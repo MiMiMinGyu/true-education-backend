@@ -85,6 +85,6 @@ npm run db:reset            # DB 컨테이너와 데이터를 지우고 setup:lo
 
 ## 4. 문제 해결
 
-- **DB 연결 실패**: `npm run db:up`으로 컨테이너를 켜세요. 호스트 포트는 다른 PostgreSQL과 겹치지 않게 **5433**입니다(`.env`의 `POSTGRES_PORT`).
+- **DB 연결 실패**: `npm run db:up`으로 컨테이너를 켜세요. 호스트 포트는 다른 PostgreSQL과 겹치지 않게 **5434**입니다(`.env`의 `POSTGRES_PORT`·`DATABASE_URL`). 예전 `.env`(5433)를 쓰고 있다면 두 곳을 5434로 바꾸세요.
 - **로그인했는데 다음 요청이 401**: 프론트 요청에 `credentials: "include"`가 빠졌거나, 프론트 주소가 `CORS_ORIGIN`과 다릅니다.
 - **`Unknown argument` 오류**(스키마를 바꾼 뒤): `npx prisma generate`로 Prisma 클라이언트를 다시 만드세요.

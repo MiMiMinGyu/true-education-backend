@@ -1,4 +1,5 @@
-# 로컬 개발용 PostgreSQL. 다른 프로젝트의 DB(5432)와 겹치지 않도록 호스트 포트는 기본 5433을 사용합니다.
+# 로컬 개발용 PostgreSQL. 다른 프로젝트의 DB와 겹치지 않도록 호스트 포트는 기본 5434를 사용합니다
+# (5432·5433은 다른 로컬 PostgreSQL이 쓰는 경우가 많음. 바꾸려면 .env의 POSTGRES_PORT와 DATABASE_URL을 함께 수정).
 name: true-education
 
 services:
@@ -10,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yeoul}
       POSTGRES_DB: ${POSTGRES_DB:-true_education}
     ports:
-      - '127.0.0.1:${POSTGRES_PORT:-5433}:5432'
+      - '127.0.0.1:${POSTGRES_PORT:-5434}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
