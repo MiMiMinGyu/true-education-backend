@@ -20,14 +20,23 @@ export function speakerAt(lineIndex: number): Speaker {
   return lineIndex % 2 === 0 ? 'YEOUL' : 'STUDENT';
 }
 
-/** 본문을 LINES_PER_PAGE줄씩 페이지로 나눕니다(1부터 시작) */
+/**
+ * 본문을 페이지로 나눕니다(1부터 시작). 기본은 LINES_PER_PAGE줄씩, paging이 PARAGRAPH면 문단 하나가 한 쪽입니다.
+ * 차례(여울이·학생)는 쪽과 상관없이 책 전체 줄 순서로 이어집니다.
+ */
 export function toPages(content: BookContent): ReadingPage[] {
-  const lines = content.paragraphs.flatMap((paragraph) => paragraph.lines);
   const pages: ReadingPage[] = [];
-  lines.forEach((line, index) => {
-    const pageIndex = Math.floor(index / LINES_PER_PAGE);
-    pages[pageIndex] ??= { page: pageIndex + 1, lines: [] };
-    pages[pageIndex].lines.push({ ...line, speaker: speakerAt(index) });
+  let index = 0;
+  content.paragraphs.forEach((paragraph, paragraphIndex) => {
+    for (const line of paragraph.lines) {
+      const pageIndex =
+        content.paging === 'PARAGRAPH'
+          ? paragraphIndex
+          : Math.floor(index / LINES_PER_PAGE);
+      pages[pageIndex] ??= { page: pageIndex + 1, lines: [] };
+      pages[pageIndex].lines.push({ ...line, speaker: speakerAt(index) });
+      index++;
+    }
   });
   return pages;
 }

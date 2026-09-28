@@ -45,6 +45,14 @@ export function validateImportBook(input: ImportBook): ValidationResult {
   else if (book.title.length > BOOK_TITLE_MAX_LENGTH)
     errors.push(`title은 ${BOOK_TITLE_MAX_LENGTH}자 이하여야 합니다.`);
 
+  if (
+    book.paging !== undefined &&
+    book.paging !== 'LINES' &&
+    book.paging !== 'PARAGRAPH'
+  ) {
+    errors.push('paging은 LINES 또는 PARAGRAPH여야 합니다.');
+  }
+
   // 문단별 줄 text (evidence quote 확인용)
   const paragraphText = new Map<string, string>();
 

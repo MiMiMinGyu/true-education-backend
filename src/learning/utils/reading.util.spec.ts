@@ -33,6 +33,20 @@ describe('reading.util', () => {
     expect(pages.map((page) => page.page)).toEqual([1, 2]);
   });
 
+  it('paging이 PARAGRAPH면 문단 하나가 한 쪽이고, 차례는 쪽을 넘어 이어진다', () => {
+    const pages = toPages({ ...content, paging: 'PARAGRAPH' });
+    expect(pages.map((page) => page.lines.map((item) => item.id))).toEqual([
+      ['p001-1', 'p001-2'],
+      ['p002-1', 'p002-2', 'p002-3'],
+    ]);
+    expect(pages[1].lines.map((item) => item.speaker)).toEqual([
+      'YEOUL',
+      'STUDENT',
+      'YEOUL',
+    ]);
+    expect(pages.map((page) => page.page)).toEqual([1, 2]);
+  });
+
   it('문단 전체 줄을 이어 붙이고, 없는 문단이면 null', () => {
     expect(paragraphText(content, 'p001')).toBe('p001-1 문장 p001-2 문장');
     expect(paragraphText(content, 'p999')).toBeNull();
