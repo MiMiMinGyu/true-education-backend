@@ -133,8 +133,8 @@ function sawHintBeforeCorrect(q: PeriodBook['questions'][number]): boolean {
 }
 
 function metricsOf(id: AreaId, books: PeriodBook[]) {
-  const metrics = emptyMetrics();
   if (id === 'gist') {
+    const metrics = emptyMetrics();
     const observed = books.filter((book) => book.hasTitle).length;
     metrics.observedQuestionCount = observed;
     metrics.eligibleQuestionCount = observed;
@@ -142,10 +142,15 @@ function metricsOf(id: AreaId, books: PeriodBook[]) {
     metrics.scorableCoverage = observed > 0 ? 0 : null;
     return { metrics, recordIds: [], sessionIds: [] };
   }
+  return questionMetrics(AREA_STAGES[id], books);
+}
 
+/** 문제 유형 목록에 해당하는 풀이 기록으로 지표를 계산합니다(영역 판정·유형별 판정 공용) */
+function questionMetrics(stages: QuestionStage[], books: PeriodBook[]) {
+  const metrics = emptyMetrics();
   const questions = books.flatMap((book) =>
     book.questions
-      .filter((q) => AREA_STAGES[id].includes(q.stage) && q.attempts.length)
+      .filter((q) => stages.includes(q.stage) && q.attempts.length)
       .map((q) => ({
         ...q,
         assignmentId: book.assignmentId,
@@ -232,6 +237,17 @@ function stateOf(m: AreaMetrics, missing: string[]): AreaState {
   }
   if ((m.independentCorrectRate ?? 0) >= SUPPORTED_MIN_RATE) return 'supported';
   return 'practicing';
+}
+
+/**
+ * 문제 유형 하나(또는 여러 개)를 영역과 같은 기준으로 판정합니다.
+ * 프론트 보호자 화면은 영역 대신 유형(WHO·WHAT·WHY·EMOTION·ORDER)별 결과를 보여 줍니다.
+ */
+export function judgeStages(stages: QuestionStage[], books: PeriodBook[]) {
+  const { metrics } = questionMetrics(stages, books);
+  const missing =
+    metrics.validQuestionCount > 0 ? missingEvidenceOf(metrics) : [];
+  return { metrics, state: stateOf(metrics, missing) };
 }
 
 export function assessArea(id: AreaId, books: PeriodBook[]): AreaAssessment {

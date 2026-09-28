@@ -24,3 +24,11 @@ export const SUPPORTED_MIN_RATE = 0.8;
 export const NEEDS_SUPPORT_MIN_RATE = 0.6;
 export const NEEDS_SUPPORT_MIN_COUNT = 3;
 export const NEEDS_SUPPORT_MIN_SESSIONS = 2;
+
+// ---------- 프론트 보호자 화면 형태(GET …/dashboard) ----------
+
+/** 읽기 속도 추이에 보여 줄 최근 학습 날짜 수 */
+export const READING_SPEED_DAYS = 30;
+/** 설명 말하기 목록 개수(최근 완료 순) */
+export const RECENT_REFLECTIONS = 5;
+export const COLLECTING_MESSAGE = '데이터를 모으고 있어요';
