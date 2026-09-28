@@ -98,6 +98,7 @@ export class QuizService {
       if (progress.finished) {
         state.correct = progress.solved;
         state.answer = question.correctAnswer as number;
+        if (question.explanation) state.explanation = question.explanation;
       } else if (progress.attempts > 0) {
         // 1차 오답 뒤 재접속한 경우 이미 받은 힌트를 다시 보여 줍니다(오답 전에는 절대 내려가지 않음).
         state.hint =
@@ -177,6 +178,10 @@ export class QuizService {
       }
       if (!correct && finished)
         response.answer = question.correctAnswer as number;
+      // 정답 설명은 문제가 끝난 뒤(정답 또는 2회 소진)에만 보냅니다.
+      if (finished && question.explanation) {
+        response.explanation = question.explanation;
+      }
       return response;
     });
   }

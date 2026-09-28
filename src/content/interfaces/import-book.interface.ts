@@ -20,6 +20,8 @@ export interface ImportChoiceQuestion {
   correct: number;
   hint?: string | null;
   evidence?: ImportEvidence[] | null;
+  /** 정답 설명(채점 뒤에만 보여 줌) */
+  explanation?: string | null;
 }
 
 export interface ImportOrderingCard {
@@ -47,4 +49,8 @@ export interface ImportBook {
   glossary?: Record<string, string>;
   questions: ImportChoiceQuestion[];
   ordering?: ImportOrdering | null;
+  /** 제목 짓기 힌트 질문 */
+  titleHints?: string[] | null;
+  /** 원본의 나머지 정보(출처 상세·생성 모델·검수 상태 등). 그대로 보존합니다 */
+  sourceMeta?: Record<string, unknown> | null;
 }

@@ -19,6 +19,8 @@ export interface QuestionData {
   correctAnswer: unknown;
   hint: string | null;
   evidence: unknown;
+  /** 정답 설명. 문제가 끝난 뒤에만 응답에 넣습니다 */
+  explanation: string | null;
 }
 
 export interface AssignmentDetail {
@@ -31,6 +33,8 @@ export interface AssignmentDetail {
     title: string;
     author: string | null;
     content: BookContent;
+    /** 제목 짓기 힌트 질문(없으면 빈 배열) */
+    titleHints: string[];
   };
   questions: QuestionData[];
 }

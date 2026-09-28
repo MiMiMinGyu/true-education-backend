@@ -68,6 +68,7 @@ export class BookshelfService {
           text: question.text,
           options: question.options as string[],
           answer: question.correctAnswer as number,
+          explanation: question.explanation,
           attempts: attemptsOf(question.id),
         })),
       ordering: ordering

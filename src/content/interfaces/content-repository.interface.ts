@@ -13,6 +13,8 @@ export interface BookRecord {
   license: string | null;
   bibliography: string | null;
   content: BookContent;
+  titleHints: string[] | null;
+  sourceMeta: Record<string, unknown> | null;
 }
 
 export interface QuestionRecord {
@@ -25,6 +27,7 @@ export interface QuestionRecord {
   correctAnswer: unknown;
   hint: string | null;
   evidence: unknown;
+  explanation: string | null;
 }
 
 export interface ExistingBook {

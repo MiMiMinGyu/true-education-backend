@@ -85,6 +85,7 @@ export class PrismaBookshelfRepository implements IBookshelfRepository {
         correctAnswer: question.correctAnswer,
         hint: question.hint,
         evidence: question.evidence,
+        explanation: question.explanation,
       })),
       attempts: assignment.attempts.map((attempt) => ({
         questionId: attempt.questionId,

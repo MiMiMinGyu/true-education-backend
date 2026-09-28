@@ -127,6 +127,10 @@ export class QuestionStateDto {
     description: '1차 오답 후 아직 안 끝난 문제만: 이어하기용 힌트',
   })
   hint?: string;
+  @ApiPropertyOptional({
+    description: '끝난 문제만: 정답 설명(데이터에 있을 때)',
+  })
+  explanation?: string;
 }
 
 export class QuestionDto {
@@ -158,6 +162,11 @@ export class ChoiceAttemptResponseDto {
     description: '2차 오답일 때만: 정답 보기 번호',
   })
   answer?: number;
+  @ApiPropertyOptional({
+    description:
+      '문제가 끝났을 때(정답 또는 2차 오답)만: 정답 설명(데이터에 있을 때)',
+  })
+  explanation?: string;
   @ApiProperty({
     enum: STAGES,
     description: '모든 문제가 끝나면 다음 단계로 바뀜',
@@ -270,4 +279,21 @@ export class SaveReflectionResponseDto extends StageResultDto {
 
 export class StampTotalResponseDto {
   @ApiProperty({ example: 6, description: '누적 스탬프 수' }) total: number;
+}
+
+// ---------- 제목 짓기 ----------
+
+export class TitleActivityDto {
+  @ApiProperty({ example: '금도끼은도끼', description: '원래 제목' })
+  originalTitle: string;
+  @ApiProperty({
+    example: [
+      '이야기의 주인공은 누구일까요?',
+      '주인공이 어떤 일을 겪었나요?',
+      '이야기의 결말은 어떻게 되었나요?',
+    ],
+    description:
+      '제목을 떠올리게 돕는 질문(책마다, 없으면 빈 배열 → 프론트 공통 문구 사용)',
+  })
+  hintQuestions: string[];
 }

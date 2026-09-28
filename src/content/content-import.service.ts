@@ -80,6 +80,10 @@ function toBookRecord(book: ImportBook): BookRecord {
     license: book.license ?? null,
     bibliography: book.bibliography ?? null,
     content: buildBookContent(book),
+    titleHints: book.titleHints?.length
+      ? book.titleHints.map((hint) => hint.trim())
+      : null,
+    sourceMeta: book.sourceMeta ?? null,
   };
 }
 
@@ -94,6 +98,7 @@ function toQuestionRecords(book: ImportBook): QuestionRecord[] {
     correctAnswer: question.correct,
     hint: question.hint?.trim() || null,
     evidence: question.evidence?.length ? question.evidence : null,
+    explanation: question.explanation?.trim() || null,
   }));
 
   if (!book.ordering) return choices;
@@ -115,6 +120,7 @@ function toQuestionRecords(book: ImportBook): QuestionRecord[] {
       correctAnswer: cards.map((card) => card.id),
       hint: null,
       evidence: null,
+      explanation: null,
     },
   ];
 }

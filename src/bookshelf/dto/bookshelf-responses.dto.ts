@@ -50,6 +50,12 @@ export class ShelfQuestionDto {
   @ApiProperty({ example: ['토끼', '작은 곰', '부엉이'] }) options: string[];
   @ApiProperty({ example: 1, description: '정답 보기 번호' }) answer: number;
   @ApiProperty({
+    nullable: true,
+    type: String,
+    description: '정답 설명(데이터에 없으면 null)',
+  })
+  explanation: string | null;
+  @ApiProperty({
     type: [ShelfAttemptDto],
     description: '1차·2차 시도 기록(차수 순)',
   })
