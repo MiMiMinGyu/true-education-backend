@@ -42,6 +42,11 @@ export class ParentLinkRequestDto {
   })
   studentName: string;
   @ApiProperty({
+    example: 'aB3$vK',
+    description: '요청할 때 입력한 학생 코드(보호자 화면의 대기 목록 표시용)',
+  })
+  studentCode: string;
+  @ApiProperty({
     enum: ['PENDING', 'REJECTED'],
     description:
       'PENDING = 아이 수락 대기, REJECTED = 아이가 거절(정해진 시간이 지나면 다시 요청 가능)',

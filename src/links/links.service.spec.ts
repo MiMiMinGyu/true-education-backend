@@ -73,6 +73,7 @@ class InMemoryLinkRepository implements ILinkRepository {
       .map((r) => ({
         studentId: r.studentId,
         studentName: this.students.find((s) => s.id === r.studentId)!.name,
+        studentCode: this.students.find((s) => s.id === r.studentId)!.code,
         status: r.status as 'PENDING' | 'REJECTED',
         requestedAt: r.requestedAt,
         respondedAt: r.respondedAt,
@@ -141,6 +142,7 @@ describe('LinksService', () => {
     expect(result).toMatchObject({
       studentId: 1,
       studentName: '김*울',
+      studentCode: 'aB3$vK',
       status: 'PENDING',
       retryAfter: null,
     });
