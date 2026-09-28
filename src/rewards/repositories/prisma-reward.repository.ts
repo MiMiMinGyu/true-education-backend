@@ -5,6 +5,22 @@ import {
   RewardRecord,
 } from '../interfaces/reward-repository.interface';
 
+const REWARD_SELECT = {
+  requiredStamps: true,
+  name: true,
+  givenAt: true,
+} as const;
+
+const toRecord = (reward: {
+  requiredStamps: number;
+  name: string;
+  givenAt: Date | null;
+}): RewardRecord => ({
+  milestone: reward.requiredStamps,
+  name: reward.name,
+  givenAt: reward.givenAt,
+});
+
 @Injectable()
 export class PrismaRewardRepository implements IRewardRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -21,12 +37,22 @@ export class PrismaRewardRepository implements IRewardRepository {
     const rewards = await this.prisma.parentReward.findMany({
       where: { studentId },
       orderBy: { requiredStamps: 'asc' },
-      select: { requiredStamps: true, name: true },
+      select: REWARD_SELECT,
     });
-    return rewards.map((reward) => ({
-      milestone: reward.requiredStamps,
-      name: reward.name,
-    }));
+    return rewards.map(toRecord);
+  }
+
+  async findReward(
+    studentId: number,
+    milestone: number,
+  ): Promise<RewardRecord | null> {
+    const reward = await this.prisma.parentReward.findUnique({
+      where: {
+        studentId_requiredStamps: { studentId, requiredStamps: milestone },
+      },
+      select: REWARD_SELECT,
+    });
+    return reward && toRecord(reward);
   }
 
   async upsertReward(
@@ -47,6 +73,19 @@ export class PrismaRewardRepository implements IRewardRepository {
   async deleteReward(studentId: number, milestone: number): Promise<void> {
     await this.prisma.parentReward.deleteMany({
       where: { studentId, requiredStamps: milestone },
+    });
+  }
+
+  async setGivenAt(
+    studentId: number,
+    milestone: number,
+    givenAt: Date | null,
+  ): Promise<void> {
+    await this.prisma.parentReward.update({
+      where: {
+        studentId_requiredStamps: { studentId, requiredStamps: milestone },
+      },
+      data: { givenAt },
     });
   }
 }

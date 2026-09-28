@@ -332,7 +332,7 @@ describe('보호자 대시보드·보상 (통합)', () => {
       .expect(400);
   });
 
-  it('보상: 5의 배수 목표치만, 달성하면 고치거나 지울 수 없고, 학생은 같은 보상판을 읽기만', async () => {
+  it('보상: 5의 배수 목표치만, 선물한 뒤에는 고치거나 지울 수 없고, 학생은 같은 보상판을 읽기만', async () => {
     const kid = await loginAsNewStudent(ctx.app, 'kid11');
     const parent = await loginAsLinkedParent(kid.studentCode, 'parent11');
     const base = `/parents/me/students/${kid.studentId}/rewards`;
@@ -349,7 +349,7 @@ describe('보호자 대시보드·보상 (통합)', () => {
     expect(
       (await parent.put(`${base}/5`).send({ name: '  간식  ' }).expect(200))
         .body.rewards,
-    ).toEqual([{ milestone: 5, name: '간식', achieved: false }]);
+    ).toEqual([{ milestone: 5, name: '간식', achieved: false, givenAt: null }]);
     await parent.put(`${base}/10`).send({ name: '공원 가기' }).expect(200);
     await parent.put(`${base}/5`).send({ name: '아이스크림' }).expect(200);
     await kid.agent.put(`${base}/15`).send({ name: '장난감' }).expect(403);
@@ -370,19 +370,47 @@ describe('보호자 대시보드·보상 (통합)', () => {
       stampsPerReward: 5,
       stampTotal: 5,
       rewards: [
-        { milestone: 5, name: '아이스크림', achieved: true },
-        { milestone: 10, name: '공원 가기', achieved: false },
+        { milestone: 5, name: '아이스크림', achieved: true, givenAt: null },
+        { milestone: 10, name: '공원 가기', achieved: false, givenAt: null },
       ],
       nextMilestone: 10,
     };
     expect(
       (await kid.agent.get('/students/me/rewards').expect(200)).body,
     ).toEqual(board);
+
+    // 달성했어도 아직 전하지 않았으면 바꿀 수 있다
+    await parent.put(`${base}/5`).send({ name: '간식 먹기' }).expect(200);
+
+    // 선물했어요: 보상이 없거나(15) 스탬프가 모자라면(10) 안 됨
+    await parent.put(`${base}/15/given`).expect(404);
+    await parent.put(`${base}/10/given`).expect(409);
+    await kid.agent.put(`${base}/5/given`).expect(403);
+    const given = (await parent.put(`${base}/5/given`).expect(200)).body;
+    const givenAt: string = given.rewards[0].givenAt;
+    expect(Date.parse(givenAt)).not.toBeNaN();
+    // 다시 눌러도 처음 시각 유지, 학생 보상판에도 보임
+    expect(
+      (await parent.put(`${base}/5/given`).expect(200)).body.rewards[0].givenAt,
+    ).toBe(givenAt);
+    expect(
+      (await kid.agent.get('/students/me/rewards')).body.rewards[0].givenAt,
+    ).toBe(givenAt);
+
+    // 선물한 보상은 고치거나 지울 수 없다 → 취소하면 다시 가능
     await parent.put(`${base}/5`).send({ name: '바꿈' }).expect(409);
     await parent.delete(`${base}/5`).expect(409);
+    expect(
+      (await parent.delete(`${base}/5/given`).expect(200)).body.rewards[0]
+        .givenAt,
+    ).toBeNull();
+    await parent.put(`${base}/5`).send({ name: '바꿈' }).expect(200);
+
     await parent.delete(`${base}/15`).expect(204);
     await parent.delete(`${base}/10`).expect(204);
-    expect((await parent.get(base)).body.rewards).toEqual([board.rewards[0]]);
+    expect((await parent.get(base)).body.rewards).toEqual([
+      { milestone: 5, name: '바꿈', achieved: true, givenAt: null },
+    ]);
   });
 
   it('접근 제어: 비로그인 401, 학생 403, 연결되지 않은 자녀·없는 학생 403, 잘못된 id 400', async () => {

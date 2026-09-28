@@ -4,12 +4,18 @@ export interface RewardRecord {
   /** 목표치 = 누적 스탬프 수(parent_rewards.required_stamps) */
   milestone: number;
   name: string;
+  /** 보호자가 아이에게 전한 시각(안 줬으면 null) */
+  givenAt: Date | null;
 }
 
 export interface IRewardRepository {
   sumStamps(studentId: number): Promise<number>;
   /** 목표치 오름차순 */
   listRewards(studentId: number): Promise<RewardRecord[]>;
+  findReward(
+    studentId: number,
+    milestone: number,
+  ): Promise<RewardRecord | null>;
   /** 학생·목표치당 1개. 있으면 글과 작성 보호자를 바꿉니다 */
   upsertReward(
     parentId: number,
@@ -19,4 +25,9 @@ export interface IRewardRepository {
   ): Promise<void>;
   /** 없으면 아무것도 하지 않습니다 */
   deleteReward(studentId: number, milestone: number): Promise<void>;
+  setGivenAt(
+    studentId: number,
+    milestone: number,
+    givenAt: Date | null,
+  ): Promise<void>;
 }

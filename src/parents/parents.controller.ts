@@ -18,6 +18,7 @@ import {
   ApiCookieAuth,
   ApiForbiddenResponse,
   ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -97,13 +98,13 @@ export class ParentsController {
   @ApiOperation({
     summary: '보상 등록·수정',
     description:
-      '목표치(5의 배수)의 보상 글을 정합니다. 이미 달성한 목표치는 바꿀 수 없습니다.',
+      '목표치(5의 배수)의 보상 글을 정합니다. 달성한 뒤에도 아이에게 전하기 전까지는 바꿀 수 있고, 선물한 뒤에는 바꿀 수 없습니다.',
   })
   @ApiOkResponse({ type: RewardBoardDto, description: '갱신된 보상판' })
   @ApiBadRequestResponse({
     description: '목표치가 5의 배수가 아니거나 글이 비었음',
   })
-  @ApiConflictResponse({ description: '이미 달성한 목표치' })
+  @ApiConflictResponse({ description: '이미 선물한 보상' })
   @UseGuards(LinkedStudentGuard)
   @Put(':studentId/rewards/:milestone')
   setReward(
@@ -117,11 +118,12 @@ export class ParentsController {
 
   @ApiOperation({
     summary: '보상 삭제',
-    description: '달성 전에만 지울 수 있습니다. 없는 보상을 지워도 204입니다.',
+    description:
+      '아이에게 전하기 전까지 지울 수 있습니다. 없는 보상을 지워도 204입니다.',
   })
   @ApiNoContentResponse()
   @ApiBadRequestResponse({ description: '목표치가 5의 배수가 아님' })
-  @ApiConflictResponse({ description: '이미 달성한 목표치' })
+  @ApiConflictResponse({ description: '이미 선물한 보상' })
   @UseGuards(LinkedStudentGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(':studentId/rewards/:milestone')
@@ -130,5 +132,37 @@ export class ParentsController {
     @Param('milestone', ParseIntPipe) milestone: number,
   ): Promise<void> {
     return this.rewardsService.remove(studentId, milestone);
+  }
+
+  @ApiOperation({
+    summary: '보상 선물했어요',
+    description:
+      '보호자가 아이에게 보상을 전했다고 기록합니다(givenAt). 보상을 정했고 스탬프를 다 모은 목표치만 되며, 다시 눌러도 처음 시각이 유지됩니다.',
+  })
+  @ApiOkResponse({ type: RewardBoardDto, description: '갱신된 보상판' })
+  @ApiNotFoundResponse({ description: '정해 둔 보상이 없음' })
+  @ApiConflictResponse({ description: '아직 스탬프를 다 모으지 않음' })
+  @UseGuards(LinkedStudentGuard)
+  @Put(':studentId/rewards/:milestone/given')
+  markRewardGiven(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Param('milestone', ParseIntPipe) milestone: number,
+  ): Promise<RewardBoardDto> {
+    return this.rewardsService.markGiven(studentId, milestone);
+  }
+
+  @ApiOperation({
+    summary: '보상 선물 기록 취소',
+    description: '선물했어요를 잘못 눌렀을 때 되돌립니다.',
+  })
+  @ApiOkResponse({ type: RewardBoardDto, description: '갱신된 보상판' })
+  @ApiNotFoundResponse({ description: '정해 둔 보상이 없음' })
+  @UseGuards(LinkedStudentGuard)
+  @Delete(':studentId/rewards/:milestone/given')
+  unmarkRewardGiven(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Param('milestone', ParseIntPipe) milestone: number,
+  ): Promise<RewardBoardDto> {
+    return this.rewardsService.unmarkGiven(studentId, milestone);
   }
 }
