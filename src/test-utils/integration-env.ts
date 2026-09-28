@@ -8,3 +8,8 @@ process.env.SESSION_SECRET ??= 'integration-test-secret';
 // 업로드 파일은 레포 폴더가 아닌 임시 폴더에 저장합니다.
 process.env.STORAGE_DRIVER = 'local';
 process.env.STORAGE_LOCAL_DIR = join(tmpdir(), 'true-education-int-storage');
+// 외부로 나가는 알림·외부 키는 .env 값을 쓰지 않습니다(빈 문자열은 .env가 덮어쓰지 않음).
+// 테스트가 실제 디스코드 채널에 동화 부족 알림을 보내던 문제 방지. 필요한 테스트는 스스로 설정합니다.
+process.env.CONTENT_ALERT_WEBHOOK_URL = '';
+process.env.CONTENT_API_KEY = '';
+process.env.TYPECAST_API_KEY = '';
