@@ -25,6 +25,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "content:seed": "nest build && node dist/scripts/seed-content.js",
+    "content:import": "nest build && node dist/scripts/import-content.js",
     "demo:seed": "nest build && node dist/scripts/demo-seed.js",
     "tts:warmup": "nest build && node dist/scripts/tts-warmup.js",
     "test:int": "node --experimental-vm-modules --no-warnings=ExperimentalWarning node_modules/jest/bin/jest.js --config jest.integration.config.ts"

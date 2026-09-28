@@ -12,7 +12,15 @@ export interface BookParagraph {
   lines: BookLine[];
 }
 
+/**
+ * 쪽 나누기: LINES = 책 전체 줄을 LINES_PER_PAGE줄씩(기본, 개발용 시드),
+ * PARAGRAPH = 문단 하나가 한 쪽(AI 파트가 쪽을 나눠 주는 형식)
+ */
+export type BookPaging = 'LINES' | 'PARAGRAPH';
+
 export interface BookContent {
   paragraphs: BookParagraph[];
   glossary: Record<string, string>;
+  /** 없으면 LINES(이전에 적재한 책) */
+  paging?: BookPaging;
 }

@@ -27,5 +27,6 @@ export function buildBookContent(book: ImportBook): BookContent {
       }),
     })),
     glossary: book.glossary ?? {},
+    ...(book.paging === 'PARAGRAPH' && { paging: 'PARAGRAPH' as const }),
   };
 }
