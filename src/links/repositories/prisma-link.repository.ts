@@ -72,12 +72,13 @@ export class PrismaLinkRepository implements ILinkRepository {
         status: true,
         createdAt: true,
         respondedAt: true,
-        student: { select: { id: true, name: true } },
+        student: { select: { id: true, name: true, studentCode: true } },
       },
     });
     return rows.map((row) => ({
       studentId: row.student.id,
       studentName: row.student.name,
+      studentCode: row.student.studentCode,
       status: row.status as ParentLinkRequest['status'],
       requestedAt: row.createdAt,
       respondedAt: row.respondedAt,

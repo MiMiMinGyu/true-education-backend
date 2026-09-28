@@ -41,6 +41,7 @@ describe('보호자 연결 요청 (통합)', () => {
     expect(created).toMatchObject({
       studentId: kid.studentId,
       studentName: '테*트',
+      studentCode: kid.studentCode,
       status: 'PENDING',
     });
 
