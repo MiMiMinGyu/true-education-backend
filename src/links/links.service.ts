@@ -63,6 +63,7 @@ export class LinksService {
     return {
       studentId: student.id,
       studentName: maskName(student.name),
+      studentCode: dto.studentCode,
       status: 'PENDING',
       requestedAt,
       respondedAt: null,

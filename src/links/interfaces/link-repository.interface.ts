@@ -15,6 +15,8 @@ export interface LinkRequestContext {
 export interface ParentLinkRequest {
   studentId: number;
   studentName: string;
+  /** 보호자가 요청할 때 입력한 학생 코드 */
+  studentCode: string;
   status: Exclude<LinkStatus, 'ACCEPTED'>;
   requestedAt: Date;
   respondedAt: Date | null;
