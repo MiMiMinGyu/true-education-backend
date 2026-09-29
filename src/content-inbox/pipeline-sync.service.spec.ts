@@ -46,7 +46,7 @@ describe('PipelineSyncService', () => {
     expect(client.getBook).toHaveBeenCalledWith('folkency-5720');
     expect(importer.importJson).toHaveBeenCalledWith(
       { id: 'folkency-5720' },
-      { source: 'API' },
+      { source: 'PIPELINE' },
     );
     expect(result).toMatchObject({ listed: 2, existing: 1, failed: [] });
     expect(result.imported.map((r) => r.externalId)).toEqual(['folkency-5720']);
@@ -86,10 +86,9 @@ describe('PipelineSyncService', () => {
     expect(client.listBooks).toHaveBeenCalledTimes(1);
   });
 
-  it('설정이 없으면 실행하지 않고 주기 실행도 켜지 않는다', async () => {
+  it('설정이 없으면 실행하지 않는다', async () => {
     client.enabled = false;
     await expect(service.sync()).rejects.toThrow('AI_PIPELINE_URL');
-    service.startSchedule();
     expect(client.listBooks).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,7 @@ import {
   LOW_STOCK_THRESHOLD,
 } from '../common/constants/inbox.constants';
 import { ALERT_NOTIFIER, type AlertNotifier } from './alert-notifier';
+import { RefillService } from './refill.service';
 import {
   INBOX_REPOSITORY,
   type IInboxRepository,
@@ -23,6 +24,7 @@ export class ContentStockService {
   constructor(
     @Inject(INBOX_REPOSITORY) private readonly repository: IInboxRepository,
     @Inject(ALERT_NOTIFIER) private readonly notifier: AlertNotifier,
+    private readonly refill: RefillService,
   ) {}
 
   /** 학습 응답을 늦추지 않도록 기다리지 않고 실행합니다(실패는 로그만) */
@@ -37,6 +39,8 @@ export class ContentStockService {
   async check(studentId: number, now = Date.now()): Promise<boolean> {
     const remaining = await this.repository.countUnassignedBooks(studentId);
     if (remaining > LOW_STOCK_THRESHOLD) return false;
+    // AI 파이프라인에 새 작품 1편 요청(진행 중이면 안 함, 실패 대기 시간 적용). 알림 간격과는 별개
+    this.refill.requestInBackground(`남은 책 ${remaining}권인 학생`);
     if (now - this.lastAlertAt < LOW_STOCK_ALERT_COOLDOWN_MS) return false;
     this.lastAlertAt = now;
 
@@ -48,7 +52,9 @@ export class ContentStockService {
           ? '읽을 책이 모두 떨어진 학생이 있어요(오늘의 학습에서 NO_BOOK).'
           : `남은 책이 ${remaining}권인 학생이 있어요.`,
         `전체 동화 ${stock.totalBooks}권 · 남은 책 ${LOW_STOCK_THRESHOLD}권 이하 학생 ${stock.lowStudents}/${stock.activeStudents}명 · 가장 적게 남은 학생 ${stock.minRemaining}권`,
-        '새 동화 JSON을 POST /admin/books 로 보내 주세요.',
+        this.refill.enabled
+          ? 'AI 파이프라인에 새 동화 생성을 자동으로 요청했어요(완성되면 바로 적재).'
+          : '새 동화 JSON을 POST /admin/books 로 보내 주세요.',
       ].join('\n'),
     );
     return true;

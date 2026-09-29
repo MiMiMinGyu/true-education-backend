@@ -49,9 +49,11 @@ services:
       TYPECAST_MODEL: ${TYPECAST_MODEL:-}
       CONTENT_API_KEY: ${CONTENT_API_KEY:-}
       CONTENT_ALERT_WEBHOOK_URL: ${CONTENT_ALERT_WEBHOOK_URL:-}
-      # AI 파트 파이프라인(Tailscale 사설망). 둘 다 있어야 5분마다 검증된 책을 당겨옴
+      # AI 파트 파이프라인(Tailscale 사설망): 재고 부족 시 생성 요청 + 20초마다 작업 상태 확인
       AI_PIPELINE_URL: ${AI_PIPELINE_URL:-}
       AI_PIPELINE_TOKEN: ${AI_PIPELINE_TOKEN:-}
+      # 완성본 수신(POST /api/internal/ai/books) 전용 토큰. 비어 있으면 수신 경로 404
+      AI_PIPELINE_CALLBACK_TOKEN: ${AI_PIPELINE_CALLBACK_TOKEN:-}
     volumes:
       - storage_data:/app/storage
     logging: *logging

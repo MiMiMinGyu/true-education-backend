@@ -356,6 +356,61 @@ model ParentReward {
 enum ContentImportSource {
   API
   CLI
+  /// AI 파트 파이프라인이 완성 즉시 보낸 콜백(POST /internal/ai/books) 또는 수동 복구 동기화
+  PIPELINE
+}
+
+/// 재고 보충 요청 상태. PENDING·ACTIVE는 한 번에 1개만(부분 유일 인덱스 uq_one_active_refill)
+enum RefillStatus {
+  /// DB에 먼저 저장, AI 접수 전(같은 키·본문으로 재전송 대상)
+  PENDING
+  /// AI 접수됨: 생성 중이거나 완성본 전송 대기
+  ACTIVE
+  /// 완성본을 받아 DB에 저장함
+  COMPLETED
+  /// 생성 rejected/error 또는 접수 거부
+  FAILED
+}
+
+/// 동화 재고 보충 요청(AI 파트 파이프라인 random 모드). 2026-09-29 AI 파트 "백엔드 연결 명세"
+model ContentRefillRequest {
+  /// refill-<UUID>. AI 요청의 Idempotency-Key
+  id             String       @id @db.VarChar(64)
+  /// AI 작업 id = sha256(id) 앞 32자(명세 규칙으로 미리 계산 → 콜백이 먼저 와도 연결됨)
+  jobId          String       @unique @map("job_id") @db.VarChar(64)
+  /// 보낸 본문 그대로(재전송 때 같은 본문이어야 409가 나지 않음)
+  requestBody    Json         @map("request_body")
+  status         RefillStatus @default(PENDING)
+  /// 마지막으로 확인한 AI 작업 상태(queued·running·succeeded·rejected·error)
+  aiStatus       String?      @map("ai_status") @db.VarChar(30)
+  /// 마지막으로 확인한 전달 상태(pending·sending·retrying·delivered·failed·waiting_configuration)
+  deliveryStatus String?      @map("delivery_status") @db.VarChar(30)
+  error          String?
+  bookExternalId String?      @map("book_external_id") @db.VarChar(100)
+  submitAttempts Int          @default(0) @map("submit_attempts")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  finishedAt     DateTime?    @map("finished_at") @db.Timestamptz(6)
+
+  @@index([status, finishedAt])
+  @@map("content_refill_requests")
+}
+
+/// AI 파트가 보낸 완성본 수신 기록(멱등 처리). 같은 전달 키에 다른 본문이면 409
+model AiBookDelivery {
+  id          Int      @id @default(autoincrement())
+  /// 요청 헤더 Idempotency-Key(<AI 작업 id>:<책 id>)
+  deliveryKey String   @unique @map("delivery_key") @db.VarChar(250)
+  jobId       String   @map("job_id") @db.VarChar(64)
+  externalId  String   @map("external_id") @db.VarChar(100)
+  /// 받은 본문의 sha256(hex)
+  bodyHash    String   @map("body_hash") @db.Char(64)
+  /// 적재 결과(CREATED·UPDATED·SKIPPED_ASSIGNED)
+  status      String   @db.VarChar(20)
+  receivedAt  DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  @@index([jobId])
+  @@map("ai_book_deliveries")
 }
 
 /// AI 파트가 보낸 동화 JSON 원본과 처리 결과(트러블 슈팅·재적재용). 원본에 정답이 있어 공개 파일 저장소가 아닌 DB에 둡니다.

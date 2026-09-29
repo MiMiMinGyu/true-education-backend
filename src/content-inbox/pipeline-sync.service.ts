@@ -1,8 +1,4 @@
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import {
-  PIPELINE_SYNC_FIRST_DELAY_MS,
-  PIPELINE_SYNC_INTERVAL_MS,
-} from '../common/constants/inbox.constants';
+import { Inject, Injectable } from '@nestjs/common';
 import {
   AI_PIPELINE_CLIENT,
   type AiPipelineClient,
@@ -28,14 +24,12 @@ export interface PipelineSyncResult {
 }
 
 /**
- * AI 파트 파이프라인에서 검증을 통과한 책 중 DB에 없는 것만 받아 적재합니다(당겨오기).
- * 학습 요청과 분리되어 있어 파이프라인 PC가 꺼져 있어도 학습에는 영향이 없습니다.
+ * 수동 복구용 동기화: AI 파트 파이프라인에서 검증을 통과한 책 중 DB에 없는 것만 받아 적재합니다(당겨오기).
+ * 정상 흐름은 완성 즉시 콜백(POST /internal/ai/books)이라 주기 실행하지 않고 `pipeline sync` 명령으로만 씁니다.
  */
 @Injectable()
-export class PipelineSyncService implements OnModuleDestroy {
-  private readonly logger = new Logger('PipelineSync');
+export class PipelineSyncService {
   private running: Promise<PipelineSyncResult> | null = null;
-  private timers: NodeJS.Timeout[] = [];
 
   constructor(
     @Inject(AI_PIPELINE_CLIENT) private readonly client: AiPipelineClient,
@@ -45,25 +39,6 @@ export class PipelineSyncService implements OnModuleDestroy {
 
   get enabled(): boolean {
     return this.client.enabled;
-  }
-
-  /** 서버(main.ts)에서만 호출. 명령줄 스크립트에서는 주기 실행을 켜지 않습니다. */
-  startSchedule(): void {
-    if (!this.enabled || this.timers.length > 0) return;
-    const tick = () => void this.syncQuietly();
-    const first = setTimeout(tick, PIPELINE_SYNC_FIRST_DELAY_MS);
-    const every = setInterval(tick, PIPELINE_SYNC_INTERVAL_MS);
-    first.unref();
-    every.unref();
-    this.timers = [first, every];
-    this.logger.log(
-      `AI 파이프라인 동기화를 ${PIPELINE_SYNC_INTERVAL_MS / 60000}분마다 실행합니다.`,
-    );
-  }
-
-  onModuleDestroy(): void {
-    this.timers.forEach((timer) => clearTimeout(timer));
-    this.timers = [];
   }
 
   /** 동시에 여러 번 불려도 한 번만 실행하고 같은 결과를 돌려줍니다. */
@@ -77,17 +52,6 @@ export class PipelineSyncService implements OnModuleDestroy {
       this.running = null;
     });
     return this.running;
-  }
-
-  private async syncQuietly(): Promise<void> {
-    try {
-      const result = await this.sync();
-      if (result.imported.length > 0 || result.failed.length > 0) {
-        this.logger.log(describe(result));
-      }
-    } catch (error) {
-      this.logger.warn(`동기화 실패: ${message(error)}`);
-    }
   }
 
   private async run(): Promise<PipelineSyncResult> {
@@ -104,7 +68,7 @@ export class PipelineSyncService implements OnModuleDestroy {
       try {
         const raw = await this.client.getBook(id);
         result.imported.push(
-          await this.importer.importJson(raw, { source: 'API' }),
+          await this.importer.importJson(raw, { source: 'PIPELINE' }),
         );
       } catch (error) {
         result.failed.push({ id, error: message(error) });

@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { configureApp } from './app.setup';
-import { PipelineSyncService } from './content-inbox/pipeline-sync.service';
+import { RefillService } from './content-inbox/refill.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -34,7 +34,8 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 4000);
 
-  // AI 파트 파이프라인에서 검증된 책 당겨오기(AI_PIPELINE_URL·TOKEN이 있을 때만). 명령줄 스크립트에서는 켜지 않습니다.
-  app.get(PipelineSyncService).startSchedule();
+  // AI 파트 파이프라인 보충 작업의 실패 감지(AI_PIPELINE_URL·TOKEN이 있을 때만, 완성본은 콜백으로 받음).
+  // 명령줄 스크립트에서는 켜지 않습니다.
+  app.get(RefillService).startPolling();
 }
 bootstrap();

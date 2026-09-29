@@ -1,6 +1,6 @@
 export const INBOX_REPOSITORY = Symbol('INBOX_REPOSITORY');
 
-export type ImportLogSource = 'API' | 'CLI';
+export type ImportLogSource = 'API' | 'CLI' | 'PIPELINE';
 
 export interface ImportLogEntry {
   source: ImportLogSource;
