@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { LocalStorageService } from './local-storage.service';
+import { S3StorageService } from './s3-storage.service';
 import { storageConfig } from './storage.config';
 import { STORAGE_SERVICE, StorageService } from './storage.interface';
 
@@ -10,9 +11,9 @@ import { STORAGE_SERVICE, StorageService } from './storage.interface';
       provide: STORAGE_SERVICE,
       useFactory: (): StorageService => {
         const config = storageConfig();
-        if (config.driver === 's3') {
-          // TODO: 운영 배포 시 S3 드라이버(S3_BUCKET·AWS_REGION, URL은 서명된 URL) 구현
-          throw new Error('STORAGE_DRIVER=s3는 아직 구현되지 않았습니다.');
+        if (config.s3) {
+          // TODO: 정식 출시 전 아이 그림은 서명된 URL(만료 있음)로 전환 검토(DEPLOYMENT-PLAN §2-3). urlFor만 바꾸면 됨
+          return S3StorageService.create(config.s3, config.publicBaseUrl);
         }
         return new LocalStorageService(config.localDir, config.publicBaseUrl);
       },
