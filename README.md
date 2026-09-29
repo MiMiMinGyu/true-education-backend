@@ -5,6 +5,8 @@ NestJS 11 · Prisma 7 · PostgreSQL 16 · 세션(쿠키) 로그인.
 
 API 문서(Swagger): 서버 실행 후 <http://localhost:4000/api-docs>
 
+> 여울이 음성은 **타입캐스트(Typecast)** 로 제작되었습니다(출연진: 토비). 음성·동화 원문 출처는 [5. 출처 표기](#5-출처-표기)를 참고하세요.
+
 ---
 
 ## 1. 로컬에서 실행하기
@@ -88,3 +90,22 @@ npm run db:reset            # DB 컨테이너와 데이터를 지우고 setup:lo
 - **DB 연결 실패**: `npm run db:up`으로 컨테이너를 켜세요. 호스트 포트는 다른 PostgreSQL과 겹치지 않게 **5434**입니다(`.env`의 `POSTGRES_PORT`·`DATABASE_URL`). 예전 `.env`(5433)를 쓰고 있다면 두 곳을 5434로 바꾸세요.
 - **로그인했는데 다음 요청이 401**: 프론트 요청에 `credentials: "include"`가 빠졌거나, 프론트 주소가 `CORS_ORIGIN`과 다릅니다.
 - **`Unknown argument` 오류**(스키마를 바꾼 뒤): `npx prisma generate`로 Prisma 클라이언트를 다시 만드세요.
+
+---
+
+## 5. 출처 표기
+
+### 여울이 음성(TTS) — Typecast
+
+이 콘텐츠는 인공지능 가상 연기자 서비스, 타입캐스트를 활용하여 제작되었습니다.
+출연진: 토비
+<https://typecast.ai/kr>
+
+This content was produced with Typecast, an AI virtual actor service.
+Characters casted: 토비
+<https://typecast.ai>
+
+### 동화 원문
+
+동화 원문은 국립민속박물관 **한국민속대백과사전**의 민담을 바탕으로 순화·재구성했으며, **공공누리 제2유형(출처표시 + 상업적 이용금지)** 조건을 따릅니다.
+책마다의 원문 주소·라이선스·출처는 `books.source_url`·`license`·`bibliography`에 저장되며 서재 상세(`GET /bookshelf/{assignmentId}`)의 `source`로 제공됩니다.
