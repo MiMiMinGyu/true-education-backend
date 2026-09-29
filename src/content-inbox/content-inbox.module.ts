@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ContentModule } from '../content/content.module';
+import { TtsModule } from '../tts/tts.module';
 import { AdminContentController } from './admin-content.controller';
 import { AI_PIPELINE_CLIENT, HttpAiPipelineClient } from './ai-pipeline.client';
 import { PipelineCallbackGuard } from './guards/pipeline-callback.guard';
@@ -18,7 +19,7 @@ import { PrismaInboxRepository } from './repositories/prisma-inbox.repository';
 
 /** AI 파트 → 서버 동화 전송(POST /admin/books)과 동화 부족 알림 */
 @Module({
-  imports: [ContentModule],
+  imports: [ContentModule, TtsModule],
   controllers: [AdminContentController, PipelineCallbackController],
   providers: [
     { provide: INBOX_REPOSITORY, useClass: PrismaInboxRepository },

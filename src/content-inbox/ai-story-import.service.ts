@@ -5,6 +5,7 @@ import {
 } from '../content/content-import.service';
 import { convertAiStory } from '../content/utils/ai-story.converter';
 import { validateImportBook } from '../content/utils/import-book.validator';
+import { TtsAutoWarmupService } from '../tts/tts-auto-warmup.service';
 import {
   INBOX_REPOSITORY,
   type IInboxRepository,
@@ -40,6 +41,7 @@ export class AiStoryImportService {
   constructor(
     private readonly importer: ContentImportService,
     @Inject(INBOX_REPOSITORY) private readonly repository: IInboxRepository,
+    private readonly ttsWarmup: TtsAutoWarmupService,
   ) {}
 
   async importJson(
@@ -47,6 +49,10 @@ export class AiStoryImportService {
     options: StoryImportOptions,
   ): Promise<StoryImportResult> {
     const result = await this.run(raw, options);
+    // 새로 저장·갱신된 책은 여울이 음성을 바로 미리 만듭니다(기다리지 않음, 서버에서만 동작)
+    if (result.status === 'CREATED' || result.status === 'UPDATED') {
+      this.ttsWarmup.scheduleBook(result.externalId);
+    }
     if (!options.dryRun) {
       await this.repository.saveLog({
         source: options.source,

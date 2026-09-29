@@ -3,6 +3,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { configureApp } from './app.setup';
 import { RefillService } from './content-inbox/refill.service';
+import { TtsAutoWarmupService } from './tts/tts-auto-warmup.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -37,5 +38,7 @@ async function bootstrap() {
   // AI 파트 파이프라인 보충 작업의 실패 감지(AI_PIPELINE_URL·TOKEN이 있을 때만, 완성본은 콜백으로 받음).
   // 명령줄 스크립트에서는 켜지 않습니다.
   app.get(RefillService).startPolling();
+  // 여울이 음성 자동 미리 만들기(Typecast 설정이 있을 때만): 새 책 저장 즉시 + 30분마다 빠진 줄 점검
+  app.get(TtsAutoWarmupService).activate();
 }
 bootstrap();
