@@ -1,0 +1,89 @@
+# EC2 한 대 배포(발표·심사용): Caddy(HTTPS) + 프론트 + 백엔드 + PostgreSQL
+# 서버 폴더 구조: ~/app/true-education-backend(이 레포), ~/app/true-education-frontend(프론트 레포)
+# 실행: cd ~/app/true-education-backend/deploy && docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+name: true-education-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/backend.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      TRUST_PROXY: 1
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      SESSION_SECRET: ${SESSION_SECRET}
+      CORS_ORIGIN: https://${SITE_ADDRESS}
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_DIR: /app/storage
+      PUBLIC_BASE_URL: https://${SITE_ADDRESS}/api
+      TYPECAST_API_KEY: ${TYPECAST_API_KEY:-}
+      TYPECAST_VOICE_ID: ${TYPECAST_VOICE_ID:-}
+      TYPECAST_MODEL: ${TYPECAST_MODEL:-}
+      CONTENT_API_KEY: ${CONTENT_API_KEY:-}
+      CONTENT_ALERT_WEBHOOK_URL: ${CONTENT_ALERT_WEBHOOK_URL:-}
+    volumes:
+      - storage_data:/app/storage
+    logging: *logging
+
+  frontend:
+    build:
+      context: ../../true-education-frontend
+      dockerfile: ../true-education-backend/deploy/frontend.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: /api
+        NEXT_PUBLIC_TTS_PROVIDER: ${NEXT_PUBLIC_TTS_PROVIDER:-}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: *logging
+
+volumes:
+  postgres_data:
+  storage_data:
+  caddy_data:
+  caddy_config:

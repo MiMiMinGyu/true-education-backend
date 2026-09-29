@@ -1,0 +1,14 @@
+# SITE_ADDRESS = <EC2 공인 IP를 -로 이은 값>.sslip.io → Let's Encrypt 인증서를 자동으로 받아 HTTPS 제공
+# (브라우저 음성 인식·마이크는 HTTPS에서만 동작)
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# /api/* → 백엔드(앞의 /api는 떼고 넘김). 그림 등 파일은 /api/files/…
+	handle_path /api/* {
+		reverse_proxy backend:4000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
