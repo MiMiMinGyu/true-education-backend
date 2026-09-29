@@ -49,6 +49,9 @@ services:
       TYPECAST_MODEL: ${TYPECAST_MODEL:-}
       CONTENT_API_KEY: ${CONTENT_API_KEY:-}
       CONTENT_ALERT_WEBHOOK_URL: ${CONTENT_ALERT_WEBHOOK_URL:-}
+      # AI 파트 파이프라인(Tailscale 사설망). 둘 다 있어야 5분마다 검증된 책을 당겨옴
+      AI_PIPELINE_URL: ${AI_PIPELINE_URL:-}
+      AI_PIPELINE_TOKEN: ${AI_PIPELINE_TOKEN:-}
     volumes:
       - storage_data:/app/storage
     logging: *logging

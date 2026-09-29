@@ -23,6 +23,8 @@ export interface StockSummary {
 
 export interface IInboxRepository {
   saveLog(entry: ImportLogEntry): Promise<void>;
+  /** 주어진 외부 id 중 이미 DB에 있는 것 */
+  existingExternalIds(externalIds: string[]): Promise<string[]>;
   /** 이 학생이 아직 배정받지 않은 책 수 */
   countUnassignedBooks(studentId: number): Promise<number>;
   stockSummary(threshold: number): Promise<StockSummary>;

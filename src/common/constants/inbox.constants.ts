@@ -9,5 +9,14 @@ export const LOW_STOCK_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 /** 알림 웹훅 호출 제한 시간 */
 export const ALERT_WEBHOOK_TIMEOUT_MS = 5000;
 
+/** AI 파트 생성 파이프라인(Tailscale 사설망)에서 검증된 책을 가져오는 간격 */
+export const PIPELINE_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+
+/** 서버 시작 직후 첫 동기화까지 기다리는 시간(마이그레이션·기동 직후 부하 회피) */
+export const PIPELINE_SYNC_FIRST_DELAY_MS = 15 * 1000;
+
+/** 파이프라인 API 요청 제한 시간 */
+export const PIPELINE_REQUEST_TIMEOUT_MS = 10 * 1000;
+
 /** 서버끼리 쓰는 API 키 헤더 */
 export const CONTENT_API_KEY_HEADER = 'x-api-key';

@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { configureApp } from './app.setup';
+import { PipelineSyncService } from './content-inbox/pipeline-sync.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -32,5 +33,8 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, swaggerDocument);
 
   await app.listen(process.env.PORT ?? 4000);
+
+  // AI 파트 파이프라인에서 검증된 책 당겨오기(AI_PIPELINE_URL·TOKEN이 있을 때만). 명령줄 스크립트에서는 켜지 않습니다.
+  app.get(PipelineSyncService).startSchedule();
 }
 bootstrap();
