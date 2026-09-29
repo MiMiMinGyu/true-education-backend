@@ -35,9 +35,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      # production이면 trust proxy가 켜져 Caddy(HTTPS) 뒤에서도 secure 쿠키 발급(app.setup.ts)
       NODE_ENV: production
       PORT: 4000
-      TRUST_PROXY: 1
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       SESSION_SECRET: ${SESSION_SECRET}
       CORS_ORIGIN: https://${SITE_ADDRESS}

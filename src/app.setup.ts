@@ -12,16 +12,6 @@ const PgSessionStore = connectPgSimple(session);
  * 반환하는 close()는 세션 저장소의 DB 연결을 닫습니다(테스트 종료 시 필요).
  */
 export function configureApp(app: INestApplication): { close: () => void } {
-  // 운영에서는 리버스 프록시(Caddy)가 HTTPS를 끝내고 http로 넘깁니다. X-Forwarded-Proto를 믿어야
-  // 요청을 https로 인식해 secure 쿠키를 발급합니다(값 = 앞에 있는 프록시 수).
-  if (process.env.TRUST_PROXY) {
-    const hops = Number(process.env.TRUST_PROXY);
-    (app.getHttpAdapter().getInstance() as express.Express).set(
-      'trust proxy',
-      Number.isInteger(hops) ? hops : process.env.TRUST_PROXY,
-    );
-  }
-
   // 프론트엔드가 별도 레포/오리진에서 쿠키 기반 세션을 사용하므로 credentials 허용이 필수입니다.
   app.enableCors({
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
