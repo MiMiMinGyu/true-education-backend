@@ -20,6 +20,12 @@ export function configureApp(app: INestApplication): { close: () => void } {
 
   // 이미 쓰는 PostgreSQL에 세션을 저장해 별도 저장소(Redis 등) 없이 재시작·다중 인스턴스에서도 세션을 유지합니다.
   // 테이블(user_sessions)은 Prisma 마이그레이션이 관리하므로 자동 생성은 끕니다.
+  // 운영에서는 앞단 프록시(ALB·nginx 등)가 HTTPS를 받고 서버에는 HTTP로 넘깁니다.
+  // 프록시가 보낸 X-Forwarded-Proto를 믿어야 secure 세션 쿠키가 발급됩니다.
+  if (process.env.NODE_ENV === 'production') {
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  }
+
   const store = new PgSessionStore({
     conString: process.env.DATABASE_URL,
     tableName: 'user_sessions',
