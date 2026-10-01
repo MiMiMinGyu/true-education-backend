@@ -11,8 +11,13 @@ export const DASHBOARD_PERIOD_DAYS = 14;
 /** 조회 기간 상한(잘못된 긴 범위 방지) */
 export const DASHBOARD_MAX_PERIOD_DAYS = 92;
 
-/** 판정 전 기록 요건: 영역별로 모두 충족해야 판정합니다 */
-export const MIN_VALID_QUESTIONS = 5;
+/**
+ * 판정 전 기록 요건: 영역별로 모두 충족해야 판정합니다.
+ * 2026-10-02: 유효 문제 수 5 → 3. 책마다 유형별 문제가 1개라 5면 다섯 권을 읽어야 판정이 시작되는데,
+ * 보호자 화면 안내("세 권 이상 다 읽으면 판정")와 맞지 않아 세 권에서 판정되도록 낮춤.
+ * TODO: AI 파트(이유신) 기준 v3의 근거 값(5)과 다름 → 팀 확인 후 최종 값 확정
+ */
+export const MIN_VALID_QUESTIONS = 3;
 export const MIN_VALID_SESSIONS = 3;
 export const MIN_VALID_STORIES = 3;
 export const MIN_VALID_DAYS = 2;

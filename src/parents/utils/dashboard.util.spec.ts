@@ -190,23 +190,21 @@ describe('assessArea (v3 판정·문구)', () => {
   });
 
   it('기록 요건 미달이면 판정하지 않고 모자란 항목을 알려 준다', () => {
-    const four = assessArea(
+    // 책마다 유형별 1문제라, 두 권이면 문제 수(3 미만)와 이야기 수(3 미만)가 함께 모자람
+    const two = assessArea(
       'cause',
-      books([
-        { WHY: [false, false] },
-        { WHY: [false, false] },
-        { WHY: [false, false] },
-        { WHY: [false, false] },
-      ]),
+      books([{ WHY: [false, false] }, { WHY: [false, false] }]),
     );
-    expect(four).toMatchObject({
+    expect(two).toMatchObject({
       state: 'insufficientData',
       ruleId: 'insufficient_records',
-      missingEvidence: ['validQuestionCount'],
       observation:
         '사건의 원인을 어떻게 이해하는지 살펴볼 기록을 더 모으고 있어요.',
     });
-    expect(four.evidenceText).toContain('확인한 4문제');
+    expect(two.missingEvidence).toEqual(
+      expect.arrayContaining(['validQuestionCount', 'validStoryCount']),
+    );
+    expect(two.evidenceText).toContain('확인한 2문제');
 
     // 5문제지만 모두 같은 날
     const oneDay = assessArea(
@@ -214,6 +212,15 @@ describe('assessArea (v3 판정·문구)', () => {
       [1, 2, 3, 4, 5].map((n) => book(n, { EMOTION: [true] }, '2026-09-20')),
     );
     expect(oneDay.missingEvidence).toEqual(['validDayCount']);
+  });
+
+  it('세 권(유형별 3문제, 서로 다른 날)을 읽으면 판정한다 — 보호자 화면 안내와 같은 기준', () => {
+    const three = assessArea(
+      'emotion',
+      books([{ EMOTION: [true] }, { EMOTION: [true] }, { EMOTION: [true] }]),
+    );
+    expect(three.missingEvidence).toEqual([]);
+    expect(three.state).toBe('supported');
   });
 
   it('활동이 없으면 notObserved', () => {
