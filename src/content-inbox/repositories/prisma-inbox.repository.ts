@@ -20,6 +20,15 @@ export class PrismaInboxRepository implements IInboxRepository {
     });
   }
 
+  async existingExternalIds(externalIds: string[]): Promise<string[]> {
+    if (externalIds.length === 0) return [];
+    const books = await this.prisma.book.findMany({
+      where: { externalId: { in: externalIds } },
+      select: { externalId: true },
+    });
+    return books.map((book) => book.externalId);
+  }
+
   countUnassignedBooks(studentId: number): Promise<number> {
     return this.prisma.book.count({
       where: { assignments: { none: { studentId } } },

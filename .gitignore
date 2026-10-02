@@ -65,3 +65,6 @@ docs/
 
 # 로컬 파일 저장소(STORAGE_DRIVER=local)
 /storage/
+
+# 운영 서버 비밀값(deploy/.env.prod.example 참고)
+/deploy/.env.prod

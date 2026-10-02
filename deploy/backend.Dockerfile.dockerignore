@@ -1,0 +1,10 @@
+node_modules
+dist
+storage
+coverage
+.git
+.env*
+*.tsbuildinfo
+docs
+CLAUDE.local.md
+deploy
