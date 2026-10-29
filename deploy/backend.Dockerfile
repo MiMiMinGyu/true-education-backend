@@ -20,6 +20,12 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json prisma.config.ts ./
 COPY prisma ./prisma
+# RDS가 암호화 연결을 강제(force_ssl)하는데 Node 기본 신뢰 저장소에 Amazon RDS CA가 없어 verify-full이 실패함
+# (Phase 4 배포 중 발견) → 공개 CA 번들을 이미지에 포함해 NODE_EXTRA_CA_CERTS로 신뢰 목록에 추가.
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+  && curl -fsSL https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o /app/rds-ca-bundle.pem \
+  && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+ENV NODE_EXTRA_CA_CERTS=/app/rds-ca-bundle.pem
 RUN mkdir -p storage && chown -R node:node /app
 USER node
 EXPOSE 4000
