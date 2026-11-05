@@ -35,6 +35,16 @@ describe('학생 가입 (통합)', () => {
         agreements: ['activityRecord', 'speechToText', 'guardianView'],
       });
 
+  const signupParent = (loginId: string) =>
+    request(ctx.app.getHttpServer())
+      .post('/auth/signup/parent')
+      .send({
+        name: '보호자',
+        loginId,
+        password: 'password123',
+        agreements: ['terms', 'guardianPrivacy'],
+      });
+
   it('다른 아이디로 동시에 가입하다 같은 학생 코드를 뽑아도 둘 다 가입되고 코드는 겹치지 않는다', async () => {
     // 처음 두 번은 같은 코드, 그 뒤로는 무작위 → 두 요청 모두 중복 확인을 통과한 뒤 저장에서 충돌
     const random = studentCode.generateStudentCode;
@@ -65,5 +75,20 @@ describe('학생 가입 (통합)', () => {
     ).map((res) => res.status);
 
     expect(statuses.sort()).toEqual([201, 409, 409]);
+  });
+
+  it('같은 아이디로 학생과 보호자가 동시에 가입하면 1건만 성공한다', async () => {
+    const [student, parent] = await Promise.all([
+      signup('cross01'),
+      signupParent('cross01'),
+    ]);
+
+    expect([student.status, parent.status].sort()).toEqual([201, 409]);
+    expect(await ctx.prisma.student.count()).toBe(
+      student.status === 201 ? 1 : 0,
+    );
+    expect(await ctx.prisma.parent.count()).toBe(
+      parent.status === 201 ? 1 : 0,
+    );
   });
 });
