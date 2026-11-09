@@ -9,6 +9,25 @@ API 문서(Swagger): 서버 실행 후 <http://localhost:4000/api-docs>
 
 ---
 
+## 글 모음
+
+이 프로젝트를 만들며 내린 결정과 그 과정을 기록한 글입니다. 발행 순서대로 정리했습니다.
+
+| # | 제목 | 주제 |
+|---|---|---|
+| 1 | [느린 학습자 독서 서비스 — 프로젝트 소개](docs/blog/01-project-intro.md) | 문제 정의, 팀 구성, 수상 |
+| 2 | [4명의 클로드가 같은 곳을 보게 만들기 — 하네스 엔지니어링](docs/blog/02-harness-engineering.md) | AI 협업 방식, 바이브코딩에서 하네스 엔지니어링으로 |
+| 3 | [Redis의 자리는 남겨두다 — 세션 저장소](docs/blog/03-session-store.md) | 세션 저장소 설계 |
+| 4 | [UNIQUE 제약이 못 막아준 순간 — 아이디 유일성](docs/blog/04-id-uniqueness.md) | 동시성, advisory lock |
+| 5 | [사용자 수와 비용의 분리 — TTS 캐싱](docs/blog/05-tts-caching.md) | 외부 유료 API 비용 설계 |
+| 6 | [개인정보와 관련 있다면 더욱 민감하게 — 연결 요청·수락](docs/blog/06-link-request.md) | 권한 모델 재설계 |
+| 7 | [인프라 재구축 — Terraform·망분리·최소 권한](docs/blog/07-infra-rebuild.md) | VPC, IAM, 비밀 관리 |
+| 8 | [알고 있던 것과 지킨 것의 차이 — 백업 공백, RTO 실측](docs/blog/08-backup-restore.md) | RDS 백업·복구 드릴 |
+| 9 | [로컬에서 안 터지던 버그 — 배포 후 프로덕션 버그 3개](docs/blog/09-production-bugs.md) | Docker, tsconfig, RDS TLS |
+| 10 | [의도치 않은 사고 발생 — Elastic IP·Terraform 드리프트·알람 버그](docs/blog/10-ops-incidents.md) | 운영 중 재부팅, 상태 드리프트, 모니터링 |
+
+---
+
 ## 1. 로컬에서 실행하기
 
 ### 준비물
