@@ -57,8 +57,9 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 CLAUDE.local.md
 
-# 기획·설계 문서는 로컬에서만 관리
-docs/
+# 기획·설계 문서는 로컬에서만 관리 (docs/blog는 포트폴리오용으로 공개)
+docs/*
+!docs/blog/
 
 # Prisma Client (prisma generate로 생성)
 /src/generated/
